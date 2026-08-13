@@ -1,0 +1,8 @@
+
+# Generated files
+*.pkl
+*.log
+logs/
+Plots/
+__pycache__/
+*.pyc
