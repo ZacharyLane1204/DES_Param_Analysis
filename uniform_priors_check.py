@@ -67,8 +67,10 @@ Two ways to define what gets run
 
 Which priors get widened
 ------------------------
-UNIFORM_PRIORS below: alpha, beta and Om0 get uniform priors over ranges
-far wider than both their informative sigma and their old hard clips.
+UNIFORM_PRIORS below: alpha and beta get uniform priors over ranges far
+wider than both their informative sigma and their old hard clips. Om0
+deliberately KEEPS its informative CMB prior -- see the comment on
+UNIFORM_PRIORS for why freeing it would defeat the purpose of the check.
 Shape parameters that are active in a given entry (x1_tau, sn_tau, tau,
 htau, ftau, M0, F0) are widened too, but only where the entry actually
 samples them -- see _uniformise(). Parameters that are already uniform by
@@ -109,10 +111,27 @@ TAG_PREFIX    = "uniformpriors"
 # move the posterior anywhere it likes, so that if it does NOT move, that
 # is a genuine statement about the data rather than about the prior.
 #
-# alpha/beta/Om0 mirror experiment_runner.py's _ZEVO_BROAD_UNIFORM exactly,
-# so an "evolution/" run and a "uniformpriors/" run of the same model are
+# alpha/beta mirror experiment_runner.py's _ZEVO_BROAD_UNIFORM exactly, so
+# an "evolution/" run and a "uniformpriors/" run of the same model are
 # fitted under identical nuisance priors and their parameter estimates are
 # directly comparable.
+#
+# Om0 IS NOT WIDENED, HERE OR IN THE EVOLUTION SWEEP.
+# ---------------------------------------------------
+# Its truncated_gaussian(0.3175, 0.0275) is an external CMB constraint,
+# not a guess that needs testing, and it is far tighter than this sample
+# can deliver on its own. Freeing it does not test prior sensitivity of
+# the standardisation model; it just lets the background cosmology slide
+# to soak up whatever the standardisation terms fail to absorb, so every
+# model comes out looking equally adequate and the comparison loses its
+# power to discriminate. Holding Om0 fixed at CMB precision is what makes
+# the residual differences between these models attributable to the
+# models.
+#
+# The consequence is that prior_shrinkage.py will keep flagging Om0 as
+# prior-dominated in these runs. That is the intended state, not a defect
+# -- Om0 is not in the prior_overrides column precisely because it was
+# never overridden.
 #
 # The remaining entries are shape parameters whose defaults are log_normal
 # or truncated_gaussian -- informative by construction. They are applied
@@ -120,10 +139,10 @@ TAG_PREFIX    = "uniformpriors"
 # because overriding the prior of an inactive parameter is a no-op that
 # just makes the resulting spec harder to read.
 UNIFORM_PRIORS = {
-    # SALT2 nuisance + cosmology (truncated_gaussian by default)
-    "alpha":  {"prior": "uniform", "range": [0.0,  0.5]},
-    "beta":   {"prior": "uniform", "range": [0.0,  8.0]},
-    "Om0":    {"prior": "uniform", "range": [0.05, 0.95]},
+    # SALT3 standardisation coefficients (truncated_gaussian by default).
+    # Om0 is intentionally absent -- see the block comment above.
+    "alpha":  {"prior": "uniform", "range": [0.0, 0.5]},
+    "beta":   {"prior": "uniform", "range": [0.0, 8.0]},
     # Shape / width parameters (log_normal or truncated_gaussian by default).
     # Ranges are each parameter's own existing hard clip -- these already
     # span orders of magnitude, so the informative part of these priors is
@@ -140,7 +159,7 @@ UNIFORM_PRIORS = {
 
 # Always uniformised, whether active or not: these are the parameters the
 # whole exercise is about, and they are active in every run anyway.
-_ALWAYS_UNIFORM = ("alpha", "beta", "Om0")
+_ALWAYS_UNIFORM = ("alpha", "beta")
 
 
 def _uniformise(specs):

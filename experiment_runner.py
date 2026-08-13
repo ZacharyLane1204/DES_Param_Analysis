@@ -133,35 +133,54 @@ _REG = {"registry_file": "run_publication_registry.csv"}
 # prior_shrinkage.py's scan of run_publication_registry.csv flagged 20 of
 # the 36 "evolution/*" runs as prior_dominated (shrinkage < 0.2), every one
 # of them on Om0, with alpha close behind -- i.e. across almost the whole
-# redshift-evolution section the posterior for the SALT2/cosmology nuisance
+# redshift-evolution section the posterior for the SALT3/cosmology nuisance
 # parameters was no tighter than the informative truncated_gaussian prior
 # it started from. That leaves the section's uniformly negative Delta ln Z
 # ambiguous: it could mean the data genuinely disfavour redshift evolution,
 # or it could just mean the informative priors were carrying the fit and
 # the extra exponent bought nothing on top of them.
 #
-# These overrides settle that. alpha, beta and Om0 are given UNIFORM priors
-# over ranges deliberately far wider than both their informative sigma and
-# their previous hard clips:
+# These overrides settle that for the standardisation coefficients, which
+# are given UNIFORM priors over ranges deliberately far wider than both
+# their informative sigma and their previous hard clips:
 #
-#   alpha  truncated_gaussian(0.17, 0.05) on [0.04, 0.26]  ->  U[0.0,  0.5]
-#   beta   truncated_gaussian(3.12, 0.50) on [1.5,  6.5]   ->  U[0.0,  8.0]
-#   Om0    truncated_gaussian(0.3175, 0.0275) on [0.2, 0.5]->  U[0.05, 0.95]
+#   alpha  truncated_gaussian(0.17, 0.05) on [0.04, 0.26]  ->  U[0.0, 0.5]
+#   beta   truncated_gaussian(3.12, 0.50) on [1.5,  6.5]   ->  U[0.0, 8.0]
 #
-# so the posteriors are free to move anywhere the data support, and any
-# remaining Delta ln Z deficit cannot be blamed on prior choice. Note that
-# widening a prior always costs evidence through the Occam factor, so ln Z
-# from these runs is NOT comparable to the informative-prior rows elsewhere
-# in run_publication_registry.csv -- compare them against
-# "evolution/baseline_broaduniform", which is the no-evolution model fitted
-# under these exact priors, and which exists for precisely that reason.
+# so their posteriors are free to move anywhere the data support, and a
+# remaining Delta ln Z deficit cannot be blamed on their priors.
+#
+# Om0 DELIBERATELY KEEPS ITS INFORMATIVE CMB-LEVEL PRIOR.
+# ------------------------------------------------------
+# It is the one parameter where "prior dominated" is the intended state
+# rather than a warning. Om0 sets the shape of the distance-redshift
+# relation, which is the *same* thing the evolution exponents modulate: a
+# free Om0 and a free alpha(z)/beta(z) exponent are close to degenerate
+# over the DES redshift range, so they simply trade against each other.
+# Freeing Om0 would let it absorb the very redshift dependence the sweep
+# exists to measure, and the exponents would then come back consistent
+# with zero for a reason that has nothing to do with the data. The
+# constraint is external (CMB), it is legitimately much tighter than
+# SNe alone can deliver, and the whole point of imposing it is to hold
+# the background cosmology fixed so any residual z-dependence has to show
+# up in the standardisation terms.
+#
+# So the Om0 flags prior_shrinkage.py raises on this section are expected
+# and should not be "fixed"; they are recorded rather than acted on.
+#
+# Note that widening alpha and beta still costs evidence through the
+# Occam factor, so ln Z from these runs is NOT comparable to the
+# informative-prior rows elsewhere in run_publication_registry.csv --
+# compare them against "evolution/baseline_broaduniform", which is the
+# no-evolution model fitted under these exact priors, and which exists
+# for precisely that reason.
 #
 # The evolution exponents a/b/g keep their arcsinh priors deliberately (see
 # the section comment below).
 _ZEVO_BROAD_UNIFORM = {
-    "alpha": {"prior": "uniform", "range": [0.0,  0.5]},
-    "beta":  {"prior": "uniform", "range": [0.0,  8.0]},
-    "Om0":   {"prior": "uniform", "range": [0.05, 0.95]},
+    "alpha": {"prior": "uniform", "range": [0.0, 0.5]},
+    "beta":  {"prior": "uniform", "range": [0.0, 8.0]},
+    # Om0 is intentionally absent -- see the block comment above.
 }
 
 
@@ -170,7 +189,7 @@ def _zevo(tag, z_evolve, *exponents, **param_overrides):
     Build one redshift-evolution experiment.
 
     Every entry in the "evolution/" section goes through this helper so the
-    broad uniform alpha/beta/Om0 priors (_ZEVO_BROAD_UNIFORM) are applied
+    broad uniform alpha/beta priors (_ZEVO_BROAD_UNIFORM) are applied
     identically to all of them -- writing them out per-entry invited exactly
     the kind of silent drift where one row keeps the informative prior and
     its Delta ln Z is then quietly incomparable to its neighbours'.

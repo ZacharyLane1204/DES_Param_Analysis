@@ -41,13 +41,23 @@ to restrict a run to one section, e.g.
 
 ## Prior sensitivity
 
-The redshift-evolution runs (`evolution/*`) are fitted under **broad uniform**
-priors on `alpha`, `beta` and `Om0` so that a low `ln Z` cannot be blamed on
-the informative priors. Because widening a prior lowers `ln Z` through its
-Occam factor regardless of fit quality, those runs are **not** comparable with
-the informative-prior `baseline`. They are instead differenced against
-`evolution/baseline_broaduniform`, the no-evolution model fitted under the same
-broad priors.
+The redshift-evolution runs (`evolution/*`) are fitted with **broad uniform**
+priors on `alpha` and `beta` so that a low `ln Z` cannot be blamed on the
+informative priors on the standardisation coefficients.
+
+`Om0` deliberately keeps its informative CMB-level prior in that section. It is
+near-degenerate with the evolution exponents over the DES redshift range -- both
+change the shape of the distance-redshift relation -- so a free `Om0` would
+absorb the redshift dependence the sweep exists to measure, and the exponents
+would return consistent with zero for reasons unrelated to the data. Holding the
+background cosmology fixed with an external constraint is the point. The
+`prior_shrinkage.py` flags on `Om0` in this section are therefore expected and
+should not be "fixed".
+
+Because widening `alpha` and `beta` still lowers `ln Z` through the Occam factor,
+those runs are **not** comparable with the informative-prior `baseline`. They are
+differenced against `evolution/baseline_broaduniform`, the no-evolution model
+fitted under the same priors.
 
 `uniform_priors_check.py` extends the same idea to any model or combination of
 terms. It writes to `uniform_checks/` and
