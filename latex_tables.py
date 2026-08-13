@@ -389,10 +389,12 @@ _REGISTRY_SECTIONS = [
     ("Cosmology",            "cosmo/"),
     ("Nuisance Parameters",  "nuisance/"),
     # The evolution runs are deliberately fitted under broad uniform
-    # alpha/beta/Om0 priors (see experiment_runner._ZEVO_BROAD_UNIFORM), so
-    # the label says so rather than letting a reader assume they share the
-    # baseline's priors.
-    ("Redshift Evolution (broad uniform priors)", "evolution/"),
+    # alpha/beta priors (see experiment_runner._ZEVO_BROAD_UNIFORM), so the
+    # label says so rather than letting a reader assume they share the
+    # baseline's priors.  Om0 keeps its informative CMB prior in this
+    # section on purpose -- a free Om0 is near-degenerate with the
+    # evolution exponents and would absorb the signal being measured.
+    (r"Redshift Evolution (uniform $\alpha$, $\beta$)", "evolution/"),
     ("Interaction Terms",    "interaction/"),
     ("Stretch Correction",   "stretch/"),
     ("SN Colour Model",      "sn_col_model/"),
@@ -726,7 +728,10 @@ def generate_evidence_table(registry_path=None):
             r"row, marked \textit{ref}, rather than against the baseline: "
             r"widening a prior lowers $\ln Z$ through the Occam factor "
             r"alone, so a cross-prior $\Delta\ln B$ would not measure "
-            r"model preference."
+            r"model preference.  The redshift-evolution runs use uniform "
+            r"$\alpha$ and $\beta$ but retain the CMB prior on "
+            r"$\Omega_{\rm M0}^{}$, which is near-degenerate with the "
+            r"evolution exponents."
         )
 
     return _lt_wrap(
