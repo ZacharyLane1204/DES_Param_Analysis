@@ -2230,6 +2230,14 @@ def _parse_args():
                         "capped at os.cpu_count())")
     p.add_argument("--log-dir", default="logs",
                    help="Directory for per-experiment log files (default: logs/)")
+    p.add_argument("--progress-interval", type=float, default=None,
+                   dest="progress_interval",
+                   help="Seconds between dynesty progress lines in each log "
+                        "(default: config's progress_interval, 1800 = every "
+                        "30 min; 0 = dynesty's continuous progress bar)")
+    p.add_argument("--quiet", action="store_true",
+                   help="Suppress dynesty progress output in the logs "
+                        "entirely (setup banners and summaries are kept)")
     p.add_argument("--sequential", action="store_true",
                    help="Disable parallelism — run one at a time (useful for debugging)")
     p.add_argument("--rerun", action="store_true",
@@ -2302,6 +2310,15 @@ def main():
     if _cli_mode is not None:
         for _, cfg in selected:
             cfg["nlive_mode"] = _cli_mode
+
+    # ---- Apply CLI progress-verbosity overrides ----
+    # Each experiment's stdout is redirected to logs/<tag>.log, so these
+    # control how much dynesty progress noise ends up in those files.
+    for _, cfg in selected:
+        if args.progress_interval is not None:
+            cfg["progress_interval"] = args.progress_interval
+        if args.quiet:
+            cfg["verbose"] = False
  
     # ---- Skip experiments already in the registry (unless --rerun) ----
     # Read every run_tag recorded in any registry CSV referenced by the

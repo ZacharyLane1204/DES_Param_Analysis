@@ -583,6 +583,17 @@ CONFIG = {
     "bound":   "multi",
     "sample":  "rslice",
     "verbose": True,
+
+    # Minimum seconds between dynesty progress lines.  Runs launched via
+    # experiment_runner.py have stdout redirected to logs/<tag>.log, and
+    # dynesty's default writer repaints its status line several times a
+    # second — harmless on a terminal, but in a file every repaint is a
+    # new line, so a long run produces a log that is hundreds of MB of
+    # progress noise with the actual output buried in it.
+    #   1800 → one heartbeat line every 30 minutes (default)
+    #   0    → dynesty's own continuous progress bar (interactive use)
+    # Set "verbose" to False to suppress progress output entirely.
+    "progress_interval": 1800,
     "sampler_mode": "dynamic",  # "dynamic" | "static"
 
     # ---- Run registry ----
