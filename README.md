@@ -75,6 +75,32 @@ python latex_tables.py --preamble --priors --iterations --evidence --checks \
 `--additional-checks` reads the uniform registry and takes all deltas against
 `uniformpriors/baseline`; `--uniform-priors` documents the widened ranges.
 
+## Log verbosity
+
+Every runner redirects its run's stdout to `logs/<tag>.log`. dynesty's default
+progress writer assumes a terminal and repaints its status line several times a
+second, which in a file means hundreds of thousands of near-identical lines and
+a log big enough to bury the actual output.
+
+Progress is therefore throttled to one compact heartbeat line every 30 minutes
+by default (`progress_interval` in `config.py`), showing elapsed time, iteration,
+call count, `logz`, `dlogz` against its target, and sampling efficiency:
+
+```
+  [2:30:00]  iter=184203  ncall=1043118  logz=-454.671 +/- 0.212  dlogz=0.0031 (target 0.001)  eff=17.6%
+```
+
+Both `run.py` and `experiment_runner.py` accept:
+
+```bash
+--progress-interval 3600   # hourly instead
+--progress-interval 0      # dynesty's continuous progress bar
+--quiet                    # no progress output at all
+```
+
+Setup banners, parameter summaries, warnings and the final evidence summary are
+never suppressed.
+
 ## Host matching
 
 Host-galaxy quality cuts use a DDLR threshold of 2.0 (`host_ddlr_max` in

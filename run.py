@@ -36,6 +36,8 @@ Run registry columns
 import os
 import sys
 import copy
+import math
+import time
 import pickle
 import argparse
 import warnings
@@ -1195,6 +1197,109 @@ def load_and_filter_data(config):
     # loo_zbins._refactorise_covariance exactly once, not twice.
     return df, data, cov_mat, inv_cov_mat, log_det_const, C_sum, keep_idx
 
+def _make_progress_printer(interval_s):
+    """
+    Return a dynesty ``print_func`` that emits one compact line every
+    ``interval_s`` seconds instead of rewriting a progress bar several
+    times a second.
+
+    Why this exists: experiment_runner.py redirects each run's stdout to
+    ``logs/<tag>.log``.  dynesty's default progress writer assumes a live
+    terminal and repaints its status line continuously using carriage
+    returns.  Sent to a file instead, every repaint is appended verbatim,
+    so a single long publication run buries its actual output (setup
+    banner, parameter summary, warnings) under hundreds of thousands of
+    near-identical progress lines and the log grows to hundreds of MB.
+
+    Throttling to a fixed wall-clock interval keeps the log readable and
+    small while still letting `tail -f` confirm a run is alive and show
+    how logz and dlogz are converging.  The first call always prints, so
+    a log shows sampling has started without waiting a full interval,
+    and the final iteration always prints so the last line reflects the
+    true end state rather than whenever the last tick happened to land.
+
+    Parameters
+    ----------
+    interval_s : float
+        Minimum seconds between printed lines.
+
+    Notes
+    -----
+    dynesty calls this as
+    ``print_func(results, niter, ncall, add_live_it=, dlogz=, stop_val=,
+    nbatch=, logl_min=, logl_max=)``.  Two details of that interface are
+    easy to get wrong:
+
+    * ``results`` is an ``IteratorResult`` during the main sampling loop
+      but an ``IteratorResultShort`` inside a dynamic batch, and the
+      short form has a *different* field order and carries no ``logz``
+      or ``delta_logz``.  Fields are therefore read by name only, never
+      by position, and simply omitted when absent.
+    * During the final add-live-points phase dynesty calls this once per
+      live point, which for a publication run is thousands of calls in
+      quick succession.  That phase gets a single announcement line
+      rather than being exempted from throttling.
+    """
+    state = {"last": 0.0, "started": time.time(), "announced_live": False}
+
+    def _field(results, name):
+        """Read a field by name, or None if this result type lacks it."""
+        return getattr(results, name, None)
+
+    def print_func(results, niter, ncall, add_live_it=None, dlogz=None,
+                   stop_val=None, nbatch=None, logl_min=-np.inf,
+                   logl_max=np.inf, pbar=None):
+        now = time.time()
+        first = state["last"] == 0.0
+
+        # add_live_it is set only while dynesty appends the final live
+        # points -- once per point, so this must not bypass throttling.
+        # One line marks the start of that phase; the real end-of-run
+        # numbers come from _print_summary immediately afterwards.
+        if add_live_it is not None:
+            if state["announced_live"]:
+                return
+            state["announced_live"] = True
+        elif not first and (now - state["last"]) < interval_s:
+            return
+        state["last"] = now
+
+        logz  = _field(results, "logz")
+        logzv = _field(results, "logzvar")
+        eff   = _field(results, "eff")
+        dlz   = _field(results, "delta_logz")
+
+        elapsed = now - state["started"]
+        hrs, rem = divmod(int(elapsed), 3600)
+        mins, secs = divmod(rem, 60)
+
+        parts = [f"[{hrs:d}:{mins:02d}:{secs:02d}]",
+                 f"iter={niter}", f"ncall={ncall}"]
+        if nbatch is not None:
+            parts.append(f"batch={nbatch}")
+        if logz is not None and np.isfinite(logz):
+            err = ""
+            if logzv is not None and logzv > 0:
+                err = f" +/- {math.sqrt(logzv):.3f}"
+            parts.append(f"logz={logz:.3f}{err}")
+        if dlz is not None and np.isfinite(dlz) and dlz < 1e6:
+            # dynesty seeds delta_logz with a ~1e300 sentinel on the first
+            # iteration, which is finite but meaningless -- printing it
+            # dumps 300 digits into the log.
+            target = f" (target {dlogz:g})" if dlogz is not None else ""
+            parts.append(f"dlogz={dlz:.4f}{target}")
+        if stop_val is not None and np.isfinite(stop_val):
+            parts.append(f"stop={stop_val:.3f}")
+        if eff is not None:
+            parts.append(f"eff={eff:.1f}%")
+        if add_live_it is not None:
+            parts.append("[adding live points]")
+
+        print("  " + "  ".join(parts), flush=True)
+
+    return print_func
+
+
 def run_sampler(config, preloaded=None):
     """
     Load data, build the likelihood, run dynesty nested sampling, save all
@@ -1319,6 +1424,25 @@ def run_sampler(config, preloaded=None):
     _dlogz  = config.get("dlogz",  1e-3)
     _verbose = config.get("verbose", True)
 
+    # ---- Progress reporting --------------------------------------------
+    # progress_interval is the minimum wall-clock gap (seconds) between
+    # dynesty progress lines.  Runs are logged to files, not terminals, so
+    # the default is a half-hourly heartbeat rather than dynesty's
+    # continuous repaint; see _make_progress_printer for why that matters.
+    #   > 0  : throttled heartbeat (default 1800 = every 30 min)
+    #   == 0 : dynesty's own uncapped progress bar (interactive use)
+    # Setting config["verbose"] = False silences progress entirely.
+    _progress_interval = float(config.get("progress_interval", 1800))
+    _print_func = (_make_progress_printer(_progress_interval)
+                   if _verbose and _progress_interval > 0 else None)
+    if _verbose:
+        if _print_func is not None:
+            print(f"Progress updates : every {_progress_interval / 60:g} min")
+        else:
+            print("Progress updates : continuous (dynesty default)")
+    else:
+        print("Progress updates : disabled")
+
     if _sampler_mode == "dynamic":
         # ── nlive_batch sizing ────────────────────────────────────────────────
         # nlive_batch is the number of live points added per refinement batch
@@ -1392,6 +1516,7 @@ def run_sampler(config, preloaded=None):
             maxbatch=_maxbatch,
             dlogz_init=_dlogz,
             print_progress=_verbose,
+            print_func=_print_func,
         )
         results    = sampler.results
         nlive_used = nlive  # registry records the init nlive
@@ -1400,7 +1525,8 @@ def run_sampler(config, preloaded=None):
         # Static nested sampler — default behaviour, unchanged from before.
         sampler = NestedSampler(logl, ptform, ndim, nlive=nlive, bound=_bound, sample=_sample)
         
-        sampler.run_nested(dlogz=_dlogz, maxiter=config.get("maxiter", None), print_progress=_verbose)
+        sampler.run_nested(dlogz=_dlogz, maxiter=config.get("maxiter", None),
+                           print_progress=_verbose, print_func=_print_func)
         
         results   = sampler.results
         nlive_used = sampler.results.nlive
@@ -1436,6 +1562,13 @@ def _parse_args():
                    help="Override number of live points")
     p.add_argument("--dlogz", type=float, default=None,
                    help="Override stopping criterion dlogz")
+    p.add_argument("--progress-interval", type=float, default=None,
+                   dest="progress_interval",
+                   help="Seconds between dynesty progress lines "
+                        "(default 1800 = every 30 min; 0 = dynesty's "
+                        "continuous progress bar)")
+    p.add_argument("--quiet", action="store_true",
+                   help="Suppress dynesty progress output entirely")
     return p.parse_args()
 
 if __name__ == "__main__":
@@ -1449,5 +1582,9 @@ if __name__ == "__main__":
         cfg["nlive"] = args.nlive
     if args.dlogz is not None:
         cfg["dlogz"] = args.dlogz
+    if args.progress_interval is not None:
+        cfg["progress_interval"] = args.progress_interval
+    if args.quiet:
+        cfg["verbose"] = False
 
     results, sampler, active_names, data, run_name = run_sampler(cfg)
