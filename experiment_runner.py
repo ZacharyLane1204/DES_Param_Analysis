@@ -128,6 +128,76 @@ def _build(tag, param_overrides=None, config_overrides=None):
 _REG = {"registry_file": "run_publication_registry.csv"}
 
 # ===========================================================================
+# BROAD UNIFORM PRIORS FOR THE REDSHIFT-EVOLUTION SWEEP
+# ===========================================================================
+# prior_shrinkage.py's scan of run_publication_registry.csv flagged 20 of
+# the 36 "evolution/*" runs as prior_dominated (shrinkage < 0.2), every one
+# of them on Om0, with alpha close behind -- i.e. across almost the whole
+# redshift-evolution section the posterior for the SALT2/cosmology nuisance
+# parameters was no tighter than the informative truncated_gaussian prior
+# it started from. That leaves the section's uniformly negative Delta ln Z
+# ambiguous: it could mean the data genuinely disfavour redshift evolution,
+# or it could just mean the informative priors were carrying the fit and
+# the extra exponent bought nothing on top of them.
+#
+# These overrides settle that. alpha, beta and Om0 are given UNIFORM priors
+# over ranges deliberately far wider than both their informative sigma and
+# their previous hard clips:
+#
+#   alpha  truncated_gaussian(0.17, 0.05) on [0.04, 0.26]  ->  U[0.0,  0.5]
+#   beta   truncated_gaussian(3.12, 0.50) on [1.5,  6.5]   ->  U[0.0,  8.0]
+#   Om0    truncated_gaussian(0.3175, 0.0275) on [0.2, 0.5]->  U[0.05, 0.95]
+#
+# so the posteriors are free to move anywhere the data support, and any
+# remaining Delta ln Z deficit cannot be blamed on prior choice. Note that
+# widening a prior always costs evidence through the Occam factor, so ln Z
+# from these runs is NOT comparable to the informative-prior rows elsewhere
+# in run_publication_registry.csv -- compare them against
+# "evolution/baseline_broaduniform", which is the no-evolution model fitted
+# under these exact priors, and which exists for precisely that reason.
+#
+# The evolution exponents a/b/g keep their arcsinh priors deliberately (see
+# the section comment below).
+_ZEVO_BROAD_UNIFORM = {
+    "alpha": {"prior": "uniform", "range": [0.0,  0.5]},
+    "beta":  {"prior": "uniform", "range": [0.0,  8.0]},
+    "Om0":   {"prior": "uniform", "range": [0.05, 0.95]},
+}
+
+
+def _zevo(tag, z_evolve, *exponents, **param_overrides):
+    """
+    Build one redshift-evolution experiment.
+
+    Every entry in the "evolution/" section goes through this helper so the
+    broad uniform alpha/beta/Om0 priors (_ZEVO_BROAD_UNIFORM) are applied
+    identically to all of them -- writing them out per-entry invited exactly
+    the kind of silent drift where one row keeps the informative prior and
+    its Delta ln Z is then quietly incomparable to its neighbours'.
+
+    Parameters
+    ----------
+    tag       : full run tag, e.g. "evolution/alpha_beta_z_power".
+    z_evolve  : the z_evolve model name ("power"/"log"/"zz"/"linear"/
+                "exp"/"step").
+    exponents : which evolution exponents to activate, any of "a" (alpha
+                evolution), "b" (beta), "g" (gamma). Pass none for the
+                matched-prior no-evolution reference.
+    param_overrides : any further per-parameter overrides, merged last so a
+                caller can still override the broad uniform block if needed.
+    """
+    overrides = {name: dict(spec) for name, spec in _ZEVO_BROAD_UNIFORM.items()}
+    for e in exponents:
+        overrides[e] = {"active": True, "fixed": 0}
+    for name, updates in param_overrides.items():
+        overrides.setdefault(name, {}).update(updates)
+    return _build(tag,
+                  config_overrides={"model": {**CONFIG["model"],
+                                              "z_evolve": z_evolve}},
+                  param_overrides=overrides)
+
+
+# ===========================================================================
 # EXPERIMENT DEFINITIONS
 # ===========================================================================
 # Each entry is a call to _build().  Add / remove entries freely.
@@ -220,142 +290,75 @@ EXPERIMENTS = [
             # -----------------------------------------------------------------------
             # REDSHIFT EVOLUTION VARIANTS
             # -----------------------------------------------------------------------
+            # BROAD UNIFORM NUISANCE/COSMOLOGY PRIORS -- see _ZEVO_BROAD_UNIFORM
+            # above. Every entry in this section is built through _zevo(), so
+            # alpha, beta and Om0 are uniform over deliberately over-wide
+            # ranges in all of them, and no entry can silently drift back to
+            # the informative defaults. The evolution exponents a/b/g keep
+            # their arcsinh priors -- they are the parameters under test, and
+            # changing their prior at the same time would confound "the
+            # nuisance priors were doing the work" with "the exponent prior
+            # was doing the work".
+            #
+            # Compare these against evolution/baseline_broaduniform (the
+            # no-evolution reference fitted under the SAME broad uniform
+            # priors), NOT against the top-level "baseline" row, which still
+            # uses the informative priors and therefore has a systematically
+            # different Occam factor.
 
-            _build("evolution/alpha_z_power", config_overrides={"model": {**CONFIG["model"], "z_evolve": "power"}}, 
-                   param_overrides={"a": {"active": True, "fixed": 0}}),
+            # Matched-prior reference: z_evolve is irrelevant here because no
+            # exponent is active, so this is the flat, no-evolution model
+            # fitted under exactly the broad uniform priors every entry below
+            # uses. Delta ln Z against THIS row isolates the evidence for
+            # redshift evolution from the evidence lost to widening the
+            # priors.
+            _zevo("evolution/baseline_broaduniform", "power"),
 
-            _build("evolution/beta_z_power", config_overrides={"model": {**CONFIG["model"], "z_evolve": "power"}}, 
-                   param_overrides={"b": {"active": True, "fixed": 0}}),
-            
-            _build("evolution/gamma_z_power", config_overrides={"model": {**CONFIG["model"], "z_evolve": "power"}}, 
-                   param_overrides={"g": {"active": True, "fixed": 0}}),
-            
-            _build("evolution/alpha_beta_z_power", config_overrides={"model": {**CONFIG["model"], "z_evolve": "power"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0}}),
-            
-            _build("evolution/beta_gamma_z_power", config_overrides={"model": {**CONFIG["model"], "z_evolve": "power"}},
-                   param_overrides={"b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
+            _zevo("evolution/alpha_z_power", "power", "a"),
+            _zevo("evolution/beta_z_power", "power", "b"),
+            _zevo("evolution/gamma_z_power", "power", "g"),
+            _zevo("evolution/alpha_beta_z_power", "power", "a", "b"),
+            _zevo("evolution/beta_gamma_z_power", "power", "b", "g"),
+            _zevo("evolution/all_z_power", "power", "a", "b", "g"),
 
-            _build("evolution/all_z_power", config_overrides={"model": {**CONFIG["model"], "z_evolve": "power"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
+            _zevo("evolution/alpha_z_log", "log", "a"),
+            _zevo("evolution/beta_z_log", "log", "b"),
+            _zevo("evolution/gamma_z_log", "log", "g"),
+            _zevo("evolution/alpha_beta_z_log", "log", "a", "b"),
+            _zevo("evolution/beta_gamma_z_log", "log", "b", "g"),
+            _zevo("evolution/all_z_log", "log", "a", "b", "g"),
 
-            _build("evolution/alpha_z_log", config_overrides={"model": {**CONFIG["model"], "z_evolve": "log"}}, 
-                   param_overrides={"a": {"active": True, "fixed": 0}}),
-
-            _build("evolution/beta_z_log", config_overrides={"model": {**CONFIG["model"], "z_evolve": "log"}}, 
-                   param_overrides={"b": {"active": True, "fixed": 0}}),
-            
-            _build("evolution/gamma_z_log", config_overrides={"model": {**CONFIG["model"], "z_evolve": "log"}}, 
-                   param_overrides={"g": {"active": True, "fixed": 0}}),
-            
-            _build("evolution/alpha_beta_z_log", config_overrides={"model": {**CONFIG["model"], "z_evolve": "log"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0}}),
-            
-            _build("evolution/beta_gamma_z_log", config_overrides={"model": {**CONFIG["model"], "z_evolve": "log"}},
-                   param_overrides={"b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
-
-            _build("evolution/all_z_log", config_overrides={"model": {**CONFIG["model"], "z_evolve": "log"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
-
-            _build("evolution/alpha_z_zz", config_overrides={"model": {**CONFIG["model"], "z_evolve": "zz"}}, 
-                   param_overrides={"a": {"active": True, "fixed": 0}}),
-
-            _build("evolution/beta_z_zz", config_overrides={"model": {**CONFIG["model"], "z_evolve": "zz"}}, 
-                   param_overrides={"b": {"active": True, "fixed": 0}}),
-            
-            _build("evolution/gamma_z_zz", config_overrides={"model": {**CONFIG["model"], "z_evolve": "zz"}}, 
-                   param_overrides={"g": {"active": True, "fixed": 0}}),
-
-            _build("evolution/alpha_beta_z_zz", config_overrides={"model": {**CONFIG["model"], "z_evolve": "zz"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0}}),
-
-            _build("evolution/beta_gamma_z_zz", config_overrides={"model": {**CONFIG["model"], "z_evolve": "zz"}},
-                   param_overrides={"b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
-
-            _build("evolution/all_z_zz", config_overrides={"model": {**CONFIG["model"], "z_evolve": "zz"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
+            _zevo("evolution/alpha_z_zz", "zz", "a"),
+            _zevo("evolution/beta_z_zz", "zz", "b"),
+            _zevo("evolution/gamma_z_zz", "zz", "g"),
+            _zevo("evolution/alpha_beta_z_zz", "zz", "a", "b"),
+            _zevo("evolution/beta_gamma_z_zz", "zz", "b", "g"),
+            _zevo("evolution/all_z_zz", "zz", "a", "b", "g"),
 
             # ---- linear-in-z evolution (first-order Taylor around z_pivot) ----
-            _build("evolution/alpha_z_linear", config_overrides={"model": {**CONFIG["model"], "z_evolve": "linear"}},
-                   param_overrides={"a": {"active": True, "fixed": 0}}),
+            _zevo("evolution/alpha_z_linear", "linear", "a"),
+            _zevo("evolution/beta_z_linear", "linear", "b"),
+            _zevo("evolution/gamma_z_linear", "linear", "g"),
+            _zevo("evolution/alpha_beta_z_linear", "linear", "a", "b"),
+            _zevo("evolution/beta_gamma_z_linear", "linear", "b", "g"),
+            _zevo("evolution/all_z_linear", "linear", "a", "b", "g"),
 
-            _build("evolution/beta_z_linear", config_overrides={"model": {**CONFIG["model"], "z_evolve": "linear"}},
-                   param_overrides={"b": {"active": True, "fixed": 0}}),
+            # ---- exp-in-z evolution ----
+            _zevo("evolution/alpha_z_exp", "exp", "a"),
+            _zevo("evolution/beta_z_exp", "exp", "b"),
+            _zevo("evolution/gamma_z_exp", "exp", "g"),
+            _zevo("evolution/alpha_beta_z_exp", "exp", "a", "b"),
+            _zevo("evolution/beta_gamma_z_exp", "exp", "b", "g"),
+            _zevo("evolution/all_z_exp", "exp", "a", "b", "g"),
 
-            _build("evolution/gamma_z_linear", config_overrides={"model": {**CONFIG["model"], "z_evolve": "linear"}},
-                   param_overrides={"g": {"active": True, "fixed": 0}}),
-
-            _build("evolution/alpha_beta_z_linear", config_overrides={"model": {**CONFIG["model"], "z_evolve": "linear"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0}}),
-
-            _build("evolution/beta_gamma_z_linear", config_overrides={"model": {**CONFIG["model"], "z_evolve": "linear"}},
-                   param_overrides={"b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
-
-            _build("evolution/all_z_linear", config_overrides={"model": {**CONFIG["model"], "z_evolve": "linear"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
-            
-            # ---- exp-in-z evolution  ----
-            _build("evolution/alpha_z_exp", config_overrides={"model": {**CONFIG["model"], "z_evolve": "exp"}},
-                   param_overrides={"a": {"active": True, "fixed": 0}}),
-
-            _build("evolution/beta_z_exp", config_overrides={"model": {**CONFIG["model"], "z_evolve": "exp"}},
-                   param_overrides={"b": {"active": True, "fixed": 0}}),
-
-            _build("evolution/gamma_z_exp", config_overrides={"model": {**CONFIG["model"], "z_evolve": "exp"}},
-                   param_overrides={"g": {"active": True, "fixed": 0}}),
-
-            _build("evolution/alpha_beta_z_exp", config_overrides={"model": {**CONFIG["model"], "z_evolve": "exp"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0}}),
-
-            _build("evolution/beta_gamma_z_exp", config_overrides={"model": {**CONFIG["model"], "z_evolve": "exp"}},
-                   param_overrides={"b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
-
-            _build("evolution/all_z_exp", config_overrides={"model": {**CONFIG["model"], "z_evolve": "exp"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
-            
             # ---- step-in-z evolution ----
-            _build("evolution/alpha_z_step", config_overrides={"model": {**CONFIG["model"], "z_evolve": "step"}},
-                   param_overrides={"a": {"active": True, "fixed": 0}}),
+            _zevo("evolution/alpha_z_step", "step", "a"),
+            _zevo("evolution/beta_z_step", "step", "b"),
+            _zevo("evolution/gamma_z_step", "step", "g"),
+            _zevo("evolution/alpha_beta_z_step", "step", "a", "b"),
+            _zevo("evolution/beta_gamma_z_step", "step", "b", "g"),
+            _zevo("evolution/all_z_step", "step", "a", "b", "g"),
 
-            _build("evolution/beta_z_step", config_overrides={"model": {**CONFIG["model"], "z_evolve": "step"}},
-                   param_overrides={"b": {"active": True, "fixed": 0}}),
-
-            _build("evolution/gamma_z_step", config_overrides={"model": {**CONFIG["model"], "z_evolve": "step"}},
-                   param_overrides={"g": {"active": True, "fixed": 0}}),
-
-            _build("evolution/alpha_beta_z_step", config_overrides={"model": {**CONFIG["model"], "z_evolve": "step"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0}}),
-
-            _build("evolution/beta_gamma_z_step", config_overrides={"model": {**CONFIG["model"], "z_evolve": "step"}},
-                   param_overrides={"b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
-
-            _build("evolution/all_z_step", config_overrides={"model": {**CONFIG["model"], "z_evolve": "step"}},
-                   param_overrides={"a": {"active": True, "fixed": 0},
-                                    "b": {"active": True, "fixed": 0},
-                                    "g": {"active": True, "fixed": 0}}),
-            
           # -----------------------------------------------------------------------
             # Stretch MODEL VARIANTS  (same parameters, different model function)
             # -----------------------------------------------------------------------
@@ -525,22 +528,30 @@ EXPERIMENTS = [
                    param_overrides={"c0": {"active": True, "fixed": 0.0},
                                     "sn_tau": {"active": True, "fixed": 0.3}}),                 
             
-            # SN Colour dust        
+            # SN Colour dust
+            # c0 is the dust model's colour pivot. It is deliberately NOT
+            # fitted in the two entries below: c0 is fixed to 1.0 so the
+            # pivot is held at a single reference value and the dust model
+            # is tested purely through beta (and, for _sntau, the power-law
+            # exponent). This also removes what used to be a silent
+            # duplicate -- "sncolour_dust" and "sncolour_dust_c0" carried
+            # byte-identical overrides, so the two tags described the same
+            # fit. The "_c0"/"_c0sntau" entries further down are now the
+            # only ones that sample c0, which is what their names claim.
             _build("sn_col_model/sncolour_dust",
                    config_overrides={"model": {**CONFIG["model"], "sn_colour": "dust"}},
-                   param_overrides={"c0": {"active": True, "prior": "truncated_gaussian",
-                                           "range": [0.3, 2.0], "mu": 1.0, "sigma": 0.3,
-                                           "fixed": 1.0}}),
-            
+                   param_overrides={"c0": {"active": False, "fixed": 1.0}}),
+
             _build("sn_col_model/sncolour_dust_c0",
                    config_overrides={"model": {**CONFIG["model"], "sn_colour": "dust"}},
                    param_overrides={"c0": {"active": True, "prior": "truncated_gaussian",
                                            "range": [0.3, 2.0], "mu": 1.0, "sigma": 0.3,
                                            "fixed": 1.0}}),
-                  
+
             _build("sn_col_model/sncolour_dust_sntau",
                    config_overrides={"model": {**CONFIG["model"], "sn_colour": "dust"}},
-                   param_overrides={"sn_tau": {"active": True}}),
+                   param_overrides={"c0": {"active": False, "fixed": 1.0},
+                                    "sn_tau": {"active": True}}),
             
             _build("sn_col_model/sncolour_dust_c0sntau",
                    config_overrides={"model": {**CONFIG["model"], "sn_colour": "dust"}},

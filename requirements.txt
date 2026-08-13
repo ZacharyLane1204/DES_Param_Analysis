@@ -1,0 +1,63 @@
+# requirements.txt  —  DES_Param_Analysis
+#
+# The pip half of the environment. environment.yml installs Python 3.9.7
+# plus the three compiled packages pip cannot build at these versions
+# (numpy, pandas, scikit-learn) and then installs this file, so the normal
+# route is just:
+#
+#     conda env create -f environment.yml
+#
+# Use this file directly only when you already have a Python 3.9.7
+# environment with those three packages present, e.g. to reinstall the
+# pure-Python half quickly without re-solving conda:
+#
+#     pip install -r requirements.txt
+#
+# Pins are exact (== not >=) for the reason spelled out in
+# environment.yml: registry CSVs accumulate log-evidences across many
+# separate invocations, and a dependency that moves between them makes
+# rows that are meant to be compared quietly incomparable.
+
+# ---- Core numerics ----
+# numpy is installed by conda (see environment.yml), not by pip -- it is
+# repeated here as a GUARD, not as a second source of truth. Without it,
+# pip is free to satisfy a transitive numpy floor by silently upgrading
+# the conda-installed numpy, which then breaks the ABI that conda's
+# pandas 1.3.4 and scikit-learn 0.24.2 were compiled against. Pip sees
+# the pin already satisfied and leaves it alone; if some future
+# dependency genuinely cannot live with numpy 1.20.3, pip now fails
+# loudly at install time instead of quietly corrupting the environment.
+# Keep this identical to environment.yml's numpy pin.
+numpy==1.20.3
+
+# scipy provides the prior transforms (truncnorm/loguniform in core.py)
+# and the Cholesky factorisation of the covariance matrix that dominates
+# likelihood runtime.
+scipy==1.10.1
+
+# ---- Nested sampling + cosmology ----
+# dynesty: every fit in run.py (NestedSampler / DynamicNestedSampler).
+#   Pinned hardest of all -- it is what produces ln Z.
+# astropy: core.py's FlatLambdaCDM / LambdaCDM / wCDM distance moduli.
+#   Installed via pip rather than conda because conda-forge's build of
+#   this version demands numpy >= 1.21.6, which contradicts the numpy pin.
+dynesty==2.1.4
+astropy==5.2.2
+
+# ---- Plotting: run.py corner plots, compare_runs.py overlays ----
+# Not available from conda-forge at this version for Python 3.9.
+matplotlib==3.7.5
+# contourpy is a matplotlib dependency and is pinned because it is the
+# one package in this tree that will not accept numpy 1.20.3: contourpy
+# >= 1.3 requires numpy >= 1.23, so leaving it unpinned drags numpy up to
+# 1.26 and breaks conda's pandas/scikit-learn. 1.1.1 is the last release
+# that supports both Python 3.9 and numpy 1.20.
+contourpy==1.1.1
+
+# ---- Thread control ----
+# Not optional in practice. experiment_runner.py and extra_runners.py
+# clamp OMP_NUM_THREADS and friends to 1 and then run one worker per
+# core; threadpoolctl is what holds that limit for BLAS libraries
+# dlopen'd after those env vars were read. Without it, N workers can each
+# spin up N BLAS threads and oversubscribe the machine by a factor of N.
+threadpoolctl==2.2.0

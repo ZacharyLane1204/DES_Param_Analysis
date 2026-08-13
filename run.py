@@ -298,6 +298,26 @@ def _registry_row(run_name, config, param_specs, active_names, results,
            "host_quality_cut": config.get("host_quality_cut", "all"),
            "obs_z_type":  config.get("obs_z_type", "all"),
            "active_params":     "|".join(active_names),
+           # Which active parameters were sampled under a prior SHAPE other
+           # than the DEFAULT_PARAM_SPECS one, as "name:prior_type" pairs
+           # (e.g. "alpha:uniform|beta:uniform|Om0:uniform").
+           #
+           # Without this, prior_shrinkage.py has no way to know which rows
+           # it may legitimately score: it reads DEFAULT_PARAM_SPECS's
+           # mu/sigma as "the" prior for every row, which is simply wrong
+           # for any run that overrode a parameter to a uniform prior --
+           # e.g. experiment_runner.py's whole "evolution/" section, which
+           # now uses broad uniform alpha/beta/Om0 precisely BECAUSE the
+           # earlier scan flagged them, and would otherwise be re-flagged
+           # forever as "prior_dominated" against a gaussian they were
+           # never sampled under. The old best-effort guard was a
+           # run_name substring match ("uniformpriors"), which those tags
+           # do not contain.
+           "prior_overrides": "|".join(
+               f"{n}:{param_specs[n].get('prior')}"
+               for n in active_names
+               if n in DEFAULT_PARAM_SPECS
+               and param_specs[n].get("prior") != DEFAULT_PARAM_SPECS[n].get("prior")),
            # Posterior means and stds for every active parameter
            **{f"{n}_mean": round(param_means[n], 5) for n in active_names},
            **{f"{n}_std":  round(param_stds[n],  5) for n in active_names},
@@ -870,7 +890,7 @@ def load_and_filter_data(config):
         raise ValueError(
             f"host_quality_cut must be 'all' or 'strict'; got '{host_quality_cut}'")
     if host_quality_cut == "strict":
-        ddlr_max      = config.get("host_ddlr_max", 4.0)
+        ddlr_max      = config.get("host_ddlr_max", 2.0)
         confusion_max = config.get("host_confusion_max", 0.1)
         missing_cols  = [c for c in ("HOST_DDLR", "HOST_CONFUSION", "HOST_NMATCH")
                         if c not in df.columns]
