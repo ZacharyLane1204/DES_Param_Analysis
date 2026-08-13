@@ -363,10 +363,45 @@ PARAM_DISPLAY = {
 # 3.  RUN CONFIG  —  edit paths, models, and sampler settings here
 # ---------------------------------------------------------------------------
 
+import os as _os
+
+_REPO_DIR = _os.path.dirname(_os.path.abspath(__file__))
+
+# Absolute paths to the two data products on the analysis server. Kept
+# verbatim so a run there is byte-identical to the published runs.
+_SERVER_DIR = "/home/users/zgl12/DES_Param_Analysis"
+
+
+def _data_path(filename):
+    """Resolve a data file to wherever it actually exists.
+
+    Order: the server path first (so nothing changes on the machine the
+    published runs came from), then alongside this config file, then the
+    current working directory.
+
+    Without this, data_file/cov_file were hard-coded to _SERVER_DIR and
+    the pipeline could only ever run on that one machine -- which defeats
+    the point of shipping environment.yml. Both files are also committed
+    to the repository, so the second branch resolves for a fresh clone
+    with no configuration at all. If none of the candidates exist the
+    server path is returned unchanged, so the resulting error names the
+    path that was expected rather than failing somewhere less obvious.
+    """
+    candidates = (_os.path.join(_SERVER_DIR, filename),
+                  _os.path.join(_REPO_DIR,   filename),
+                  _os.path.abspath(filename))
+    for path in candidates:
+        if _os.path.isfile(path):
+            return path
+    return candidates[0]
+
+
 CONFIG = {
     # ---- File paths ----
-    "data_file":  "/home/users/zgl12/DES_Param_Analysis/DES-Dovekie_Metadata.csv",
-    "cov_file":   "/home/users/zgl12/DES_Param_Analysis/STAT+SYS.npz",
+    # Resolved at import time — see _data_path above. Replace either with a
+    # literal path to point at a different dataset.
+    "data_file":  _data_path("DES-Dovekie_Metadata.csv"),
+    "cov_file":   _data_path("STAT+SYS.npz"),
     "output_dir": "Plots",
 
     # ---- Column names in the CSV ----
@@ -474,12 +509,17 @@ CONFIG = {
     # HOST_DDLR >= 0 to exclude it; do not rely on host_ddlr_max alone,
     # since -9 <= any positive threshold. On the DES-Dovekie metadata
     # uploaded during development, real HOST_DDLR tops out around 3.9, so
-    # host_ddlr_max=4.0 is effectively a no-op threshold by itself — the
-    # >= 0 sentinel exclusion is what actually does the work. Tighten
-    # host_ddlr_max below 3.9 if you want DDLR itself to be discriminating,
-    # rather than just excluding the "no host" sentinel.
+    # the old host_ddlr_max=4.0 was effectively a no-op threshold by itself —
+    # only the >= 0 sentinel exclusion did any work. host_ddlr_max is now
+    # 2.0, which is genuinely discriminating: DDLR is the SN-host separation
+    # in units of the host's directional light radius, so DDLR <= 2 is the
+    # standard "the SN sits inside the host's light profile" association
+    # criterion used in the DES host-matching literature, while DDLR ~ 4
+    # admits associations that are as likely to be chance projections.
+    # Raise it back toward 4.0 only if you deliberately want the strict cut
+    # to be sentinel-exclusion-only.
     "host_quality_cut": "all",
-    "host_ddlr_max":       4.0,
+    "host_ddlr_max":       2.0,
     "host_confusion_max":  0.1,
 
     # Host redshift observation type: "all" / "spec" / "phot" — see

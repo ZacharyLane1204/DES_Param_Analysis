@@ -958,7 +958,11 @@ EXPERIMENTS = [
             # only gives you the "strict" fit; run host_match_quality.py
             # (or `--host-quality-check` below) for the actual tension
             # comparison against your normal ("all") baseline.
-            _build("checks/hostquality_strict_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "host_quality_cut": "strict"}),
+            # host_ddlr_max is pinned explicitly to 2.0 here (the same value
+            # config.py now carries and host_match_quality.DDLR_MAX uses) so
+            # this row states the threshold it was run at rather than
+            # inheriting whatever CONFIG happens to hold.
+            _build("checks/hostquality_strict_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "host_quality_cut": "strict", "host_ddlr_max": 2.0}),
 
             # Mass cut high mass linear
             

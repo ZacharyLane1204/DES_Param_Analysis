@@ -388,7 +388,11 @@ _REGISTRY_SECTIONS = [
     ("Baseline",             "baseline"),
     ("Cosmology",            "cosmo/"),
     ("Nuisance Parameters",  "nuisance/"),
-    ("Redshift Evolution",   "evolution/"),
+    # The evolution runs are deliberately fitted under broad uniform
+    # alpha/beta/Om0 priors (see experiment_runner._ZEVO_BROAD_UNIFORM), so
+    # the label says so rather than letting a reader assume they share the
+    # baseline's priors.
+    ("Redshift Evolution (broad uniform priors)", "evolution/"),
     ("Interaction Terms",    "interaction/"),
     ("Stretch Correction",   "stretch/"),
     ("SN Colour Model",      "sn_col_model/"),
@@ -622,6 +626,37 @@ def generate_evidence_table(registry_path=None):
     base_logz     = _read_float(b, "logZ")
     base_logz_err = _read_float(b, "logZ_err")
 
+    # ---- Matched-prior reference rows ------------------------------------
+    # Some sections are fitted under deliberately different priors from the
+    # global "baseline" row -- most importantly the whole "evolution/"
+    # section, which uses broad uniform alpha/beta/Om0 (see
+    # experiment_runner.py's _ZEVO_BROAD_UNIFORM). Widening a prior costs
+    # evidence through the Occam factor regardless of fit quality, so
+    # differencing those rows against the informative-prior baseline
+    # reports a penalty for the prior volume and calls it evidence against
+    # the model, which is precisely the misreading this whole exercise
+    # exists to avoid.
+    #
+    # Where such a section ships its own matched-prior reference (a row
+    # fitted under the section's priors but without the feature under
+    # test), deltas within that section are taken against it instead. The
+    # reference row itself is shown with "---" deltas, exactly like the
+    # global baseline.
+    section_baselines = {
+        # section prefix -> matched-prior reference run_name
+        "evolution/": "evolution/baseline_broaduniform",
+    }
+    section_bases = {}
+    for prefix, ref_name in section_baselines.items():
+        ref_mask = df["run_name"].astype(str) == ref_name
+        if ref_mask.any():
+            r = df[ref_mask].iloc[0]
+            section_bases[prefix] = (ref_name,
+                                     _read_float(r, "AIC"),
+                                     _read_float(r, "BIC"),
+                                     _read_float(r, "logZ"),
+                                     _read_float(r, "logZ_err"))
+
     NCOLS = 7
     col_header = (
         r"Run & $N$ & $\chi^2$ & $\chi^2/\mathrm{d.o.f}$"
@@ -634,6 +669,7 @@ def generate_evidence_table(registry_path=None):
     data_rows = []
     row_num = 1   # counter for non-baseline rows, continues across sections
     first_section = True
+    used_section_baseline = False
     for section_label, sub_df in section_groups:
         if not first_section:
             data_rows.append(r"\hline")
@@ -643,18 +679,55 @@ def generate_evidence_table(registry_path=None):
         )
         data_rows.append(r"\hline")
 
-        def _first_col(row):
+        # Does this section have its own matched-prior reference row?
+        sec_ref = None
+        for prefix, entry in section_bases.items():
+            if sub_df["run_name"].astype(str).str.startswith(prefix).any():
+                sec_ref = entry
+                break
+
+        if sec_ref is not None:
+            ref_name, sec_aic, sec_bic, sec_logz, sec_logz_err = sec_ref
+            used_section_baseline = True
+        else:
+            ref_name = "baseline"
+            sec_aic, sec_bic = base_aic, base_bic
+            sec_logz, sec_logz_err = base_logz, base_logz_err
+
+        def _first_col(row, _ref=ref_name):
             nonlocal row_num
-            if str(row.get("run_name", "")) == "baseline":
+            name = str(row.get("run_name", ""))
+            if name == "baseline":
                 return "baseline"
+            if name == _ref:
+                # Section's matched-prior reference: label it rather than
+                # numbering it, so the table shows at a glance what the
+                # section's deltas are measured against.
+                return "ref"
             label = str(row_num)
             row_num += 1
             return label
 
         data_rows.extend(_build_evidence_rows(
-            sub_df, base_aic, base_bic, base_logz, base_logz_err,
+            sub_df, sec_aic, sec_bic, sec_logz, sec_logz_err,
+            baseline_run_name=ref_name,
             first_col_fn=_first_col,
         ))
+
+    notes = (
+        r"Runs grouped by category (same order as Iterations table).  "
+        r"$\Delta\ln B$ errors are $\sqrt{\sigma_\mathrm{run}^2 "
+        r"+ \sigma_\mathrm{base}^2}$."
+    )
+    if used_section_baseline:
+        notes += (
+            r"  Sections fitted under different priors from the baseline "
+            r"are differenced against their own matched-prior reference "
+            r"row, marked \textit{ref}, rather than against the baseline: "
+            r"widening a prior lowers $\ln Z$ through the Occam factor "
+            r"alone, so a cross-prior $\Delta\ln B$ would not measure "
+            r"model preference."
+        )
 
     return _lt_wrap(
         col_spec        = col_spec,
@@ -663,11 +736,7 @@ def generate_evidence_table(registry_path=None):
         col_header_line = col_header,
         data_rows       = data_rows,
         ncols           = NCOLS,
-        notes           = (
-            r"Runs grouped by category (same order as Iterations table).  "
-            r"$\Delta\ln B$ errors are $\sqrt{\sigma_\mathrm{run}^2 "
-            r"+ \sigma_\mathrm{base}^2}$."
-        ),
+        notes           = notes,
     )
 
 
@@ -1062,6 +1131,167 @@ def _tension_cell(nsigma):
     return fmt
 
 
+def generate_uniform_checks_table(registry_path=None):
+    r"""
+    TABLE 6 — Additional (broad-uniform-prior) checks.
+
+    Columns: Run | N | chi2 | chi2/dof | Delta AIC | Delta BIC | Delta ln B,
+    i.e. the same columns as the Evidence and Checks tables, read from
+    uniform_priors_check.py's own registry
+    (run_publication_registry_uniform.csv).
+
+    Every delta is taken against "uniformpriors/baseline" -- the baseline
+    model fitted under the SAME broad uniform priors as every other row in
+    that registry -- and never against run_publication_registry.csv's
+    "baseline". That is not a stylistic choice: a uniform prior spans far
+    more prior volume than the informative one it replaces, so its Occam
+    factor alone lowers ln Z by an amount that has nothing to do with how
+    well the model fits. Differencing across the two registries would
+    report that penalty as evidence against the model.
+
+    Within this table the comparison is sound, because every row pays the
+    same penalty: a positive Delta ln B here means the extra freedom earns
+    its keep even under priors chosen to be maximally unhelpful to it.
+
+    Parameters
+    ----------
+    registry_path : defaults to "run_publication_registry_uniform.csv".
+    """
+    if registry_path is None:
+        registry_path = "run_publication_registry_uniform.csv"
+    try:
+        df = pd.read_csv(registry_path)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Uniform-prior registry not found: {registry_path}. "
+            f"Run uniform_priors_check.py first.")
+
+    base_name = "uniformpriors/baseline"
+    base_mask = df["run_name"].astype(str) == base_name
+    if not base_mask.any():
+        raise RuntimeError(
+            f"No '{base_name}' row in {registry_path}. That run is the "
+            f"matched-prior reference every delta in this table is measured "
+            f"against, so the table cannot be built without it -- run "
+            f"`python uniform_priors_check.py --only baseline` first.")
+
+    b             = df[base_mask].iloc[0]
+    base_aic      = _read_float(b, "AIC")
+    base_bic      = _read_float(b, "BIC")
+    base_logz     = _read_float(b, "logZ")
+    base_logz_err = _read_float(b, "logZ_err")
+
+    NCOLS = 7
+    col_header = (
+        r"Run & $N$ & $\chi^2$ & $\chi^2/\mathrm{d.o.f}$"
+        r" & $\Delta$AIC & $\Delta$BIC & $\Delta\ln B$"
+    )
+    col_spec = r"c c c c c c c"
+
+    # Reference row first, then everything else in registry order, so the
+    # row the deltas are relative to is at the top rather than buried
+    # wherever it happened to be run.
+    ordered = pd.concat([df[base_mask], df[~base_mask]])
+
+    def _first_col(row):
+        name = str(row.get("run_name", ""))
+        if name == base_name:
+            return "ref"
+        return _esc(name.split("/", 1)[-1].replace("_", " "))
+
+    data_rows = _build_evidence_rows(
+        ordered, base_aic, base_bic, base_logz, base_logz_err,
+        baseline_run_name=base_name,
+        first_col_fn=_first_col,
+    )
+
+    return _lt_wrap(
+        col_spec        = col_spec,
+        caption         = "Additional checks: broad uniform priors",
+        label           = "tab:uniform_checks",
+        col_header_line = col_header,
+        data_rows       = data_rows,
+        ncols           = NCOLS,
+        notes           = (
+            r"All runs use uniform priors on $\alpha$, $\beta$ and "
+            r"$\Omega_{\rm M0}^{}$ (and on any active shape parameter); "
+            r"see Table~\ref{tab:priors_uniform}.  Deltas are relative to "
+            r"the reference row, marked \textit{ref}, which is the "
+            r"baseline model fitted under those same priors.  They are "
+            r"\textit{not} comparable with "
+            r"Table~\ref{tab:bic}: a wider prior lowers $\ln Z$ through "
+            r"its Occam factor irrespective of fit quality."
+        ),
+    )
+
+
+def generate_uniform_priors_table():
+    r"""
+    TABLE 7 — the broad uniform priors used by the additional checks.
+
+    Same layout as the ordinary priors table, but built from
+    uniform_priors_check.UNIFORM_PRIORS layered on top of
+    DEFAULT_PARAM_SPECS, so the paper can state exactly what "broad
+    uniform priors" meant rather than leaving the reader to infer it.
+
+    Only the parameters that actually change are listed -- a table
+    repeating the ~30 unchanged rows of Table~\ref{tab:priors} would bury
+    the four or five that matter.
+    """
+    # Imported lazily: uniform_priors_check imports run.py, which pulls in
+    # dynesty and the data files. latex_tables.py is otherwise a pure
+    # config+CSV reader that must stay runnable without them.
+    from uniform_priors_check import UNIFORM_PRIORS
+
+    specs = {}
+    for name, updates in UNIFORM_PRIORS.items():
+        if name not in DEFAULT_PARAM_SPECS:
+            continue
+        merged = dict(DEFAULT_PARAM_SPECS[name])
+        merged.update(updates)
+        specs[name] = merged
+
+    lines = [
+        r"\begin{table*}",
+        r"    \caption{Broad uniform priors used for the additional "
+        r"prior-sensitivity checks (Table~\ref{tab:uniform_checks}).  "
+        r"Every other parameter keeps the prior given in "
+        r"Table~\ref{tab:priors}.}",
+        r"    \label{tab:priors_uniform}",
+        r"    \centering",
+        r"    \begin{tabular}{cccc}",
+        r"        \hline",
+        r"        \hline",
+        r"        Parameters & Uniform Range & Default Prior "
+        r"& Default Distribution Parameters \\",
+        r"        \hline",
+        r"        \hline",
+    ]
+    for name in _PRIOR_ROW_ORDER:
+        if name not in specs:
+            continue
+        default = DEFAULT_PARAM_SPECS[name]
+        lo, hi  = specs[name]["range"]
+        lines.append(
+            f"        {_label(name)} & {_fmt_range(lo, hi)}"
+            f" & {_prior_type_latex(default['prior'])}"
+            f" & {_dist_params_latex(name, default)} \\\\"
+        )
+    # Anything in UNIFORM_PRIORS that _PRIOR_ROW_ORDER doesn't mention.
+    for name in specs:
+        if name in _PRIOR_ROW_ORDER:
+            continue
+        default = DEFAULT_PARAM_SPECS[name]
+        lo, hi  = specs[name]["range"]
+        lines.append(
+            f"        {_label(name)} & {_fmt_range(lo, hi)}"
+            f" & {_prior_type_latex(default['prior'])}"
+            f" & {_dist_params_latex(name, default)} \\\\"
+        )
+    lines += [r"        \hline", r"    \end{tabular}", r"\end{table*}"]
+    return "\n".join(lines)
+
+
 def generate_drilling_cones_table(csv_path):
     """
     Columns: Cone | N_SNe | RA | Dec | Gaussian tension (vs. full-sample
@@ -1191,6 +1421,14 @@ def _parse_args():
     p.add_argument("--iterations", action="store_true")
     p.add_argument("--evidence",   action="store_true")
     p.add_argument("--checks",     action="store_true")
+    p.add_argument("--additional-checks", action="store_true",
+                   dest="additional_checks",
+                   help="Generate the broad-uniform-prior additional-checks "
+                        "table from uniform_priors_check.py's registry "
+                        "(see --uniform-registry).")
+    p.add_argument("--uniform-priors", action="store_true",
+                   dest="uniform_priors",
+                   help="Generate the prior table for those uniform checks.")
     p.add_argument("--drilling-cones", action="store_true",
                    help="Generate the drilling-cones systematic-check table "
                         "from a CSV written by drilling_cones.py / "
@@ -1200,6 +1438,11 @@ def _parse_args():
                    help="Publication registry CSV (default: CONFIG['registry_file'])")
     p.add_argument("--checks-registry", default="run_checks_registry.csv",
                    dest="checks_registry")
+    p.add_argument("--uniform-registry",
+                   default="run_publication_registry_uniform.csv",
+                   dest="uniform_registry",
+                   help="Registry written by uniform_priors_check.py "
+                        "(default: run_publication_registry_uniform.csv)")
     p.add_argument("--drilling-cones-csv", default=None,
                    dest="drilling_cones_csv",
                    help="Path to a '<output_prefix>_drilling_cones.csv' "
@@ -1210,8 +1453,10 @@ def _parse_args():
 def main():
     args = _parse_args()
     if not any([args.priors, args.iterations, args.evidence,
-                args.checks, args.drilling_cones, args.preamble]):
+                args.checks, args.additional_checks, args.uniform_priors,
+                args.drilling_cones, args.preamble]):
         print("Specify: --priors  --iterations  --evidence  --checks  "
+              "--additional-checks  --uniform-priors  "
               "--drilling-cones  --preamble")
         sys.exit(1)
     if args.drilling_cones and not args.drilling_cones_csv:
@@ -1232,6 +1477,11 @@ def main():
             checks_registry_path=args.checks_registry,
             pub_registry_path=args.registry,
         ))
+    if args.uniform_priors:
+        parts.append(generate_uniform_priors_table())
+    if args.additional_checks:
+        parts.append(generate_uniform_checks_table(
+            registry_path=args.uniform_registry))
     if args.drilling_cones:
         parts.append(generate_drilling_cones_table(args.drilling_cones_csv))
 

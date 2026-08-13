@@ -1,0 +1,64 @@
+# environment.yml  —  DES_Param_Analysis
+#
+# Reproducible conda environment for the SNe Ia cosmology pipeline
+# (experiment_runner.py, extra_runners.py, uniform_priors_check.py,
+# combo_ablation_checks.py, latex_tables.py, ...).
+#
+#     conda env create -f environment.yml
+#     conda activate des-param-analysis
+#
+# or, equivalently, ./setup_env.sh, which does the same thing and then
+# verifies every installed version against the pins below.
+#
+# WHY THE PINS ARE EXACT
+# ----------------------
+# The pipeline's headline outputs are nested-sampling log-evidences and
+# the model rankings built from them, and every registry CSV accumulates
+# rows over many separate invocations. If a dependency floats between
+# those invocations, ln Z values computed weeks apart stop being
+# comparable, and a half-finished registry is silently invalidated
+# without anything visibly failing. dynesty especially must not move.
+#
+# Versions match the interpreter and `pip list` of the machine the
+# published runs were produced on (Python 3.9.7).
+#
+# WHY THE SPLIT BETWEEN conda: AND pip:
+# -------------------------------------
+# It is not stylistic; each package is on the side that can actually
+# install it at these versions:
+#
+#   conda  numpy 1.20.3, pandas 1.3.4 and scikit-learn 0.24.2 predate
+#          the arm64 wheel era, so pip has to build them from source and
+#          fails. conda-forge ships built packages for both linux-64 and
+#          osx-arm64. Putting numpy here also puts the BLAS under conda's
+#          control, which matters because the runners clamp every BLAS
+#          thread-count env var to 1 and then run one worker process per
+#          core -- that only behaves with one consistent BLAS stack.
+#
+#   pip    matplotlib 3.7.5 does not exist on conda-forge at all (3.7.3
+#          is the last py39 build), and conda-forge's astropy 5.2.2 is
+#          compiled against numpy >= 1.21.6, which is unsatisfiable
+#          alongside the numpy 1.20.3 pin above. The pip distributions of
+#          both work fine against numpy 1.20.3.
+#
+# Nothing appears on both sides, so there is no ambiguity about which
+# manager owns a given package.
+name: des-param-analysis
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.9.7
+
+  # ---- Compiled base (see note above: pip cannot install these here) ----
+  - numpy=1.20.3
+  - pandas=1.3.4
+  # scikit-learn is used only by drilling_cones.py's DBSCAN clustering of
+  # host sky positions, but the sky-position systematic check is part of
+  # combo_ablation_checks.py's standard pass, so it is a hard dependency.
+  - scikit-learn=0.24.2
+
+  - pip
+  - pip:
+      - -r requirements.txt

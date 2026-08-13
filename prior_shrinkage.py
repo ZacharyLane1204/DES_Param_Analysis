@@ -34,17 +34,25 @@ additional sampling:
 IMPORTANT CAVEAT: this reads DEFAULT_PARAM_SPECS's mu/sigma as "the"
 prior for every row, which is only valid for rows that used the ordinary
 informative prior. Runs whose param_specs explicitly overrode a
-parameter to a different prior (most obviously the "uniformpriors/*" rows
-from uniform_priors_check.py) do NOT have a meaningful shrinkage/pull
-relative to a gaussian they were never sampled under. This script
-auto-skips any run_name containing "uniformpriors" as a best-effort
-guard, but the underlying issue is that the registry does not currently
-log the ACTUAL prior type/mu/sigma used
-per run, only the resulting posterior mean/std -- worth adding to
-_registry_row in run.py if you want this trusted at scale rather than
-eyeballing which rows are exempt. If you keep other deliberately-non-
-default priors in your normal registries, pass reference_specs=<your
-dict> to override what "the prior" means for a given call.
+parameter to a different prior do NOT have a meaningful shrinkage/pull
+relative to a gaussian they were never sampled under.
+
+Since the "prior_overrides" column was added to _registry_row (run.py),
+the registry states this per (run, parameter) directly -- every row
+records which of its active parameters used a non-default prior shape,
+e.g. "alpha:uniform|beta:uniform|Om0:uniform" -- and this script skips
+exactly those pairs, scoring the rest of the same row normally. That
+matters for experiment_runner.py's whole "evolution/" section, which now
+uses broad uniform alpha/beta/Om0 BECAUSE an earlier scan flagged them:
+without the column those rows would be re-flagged as "prior_dominated"
+against priors they were never sampled under, forever.
+
+Rows written before that column existed fall back to the old best-effort
+guard: any run_name containing "uniformpriors" (see skip_pattern) is
+skipped wholesale. Re-run those entries to get per-parameter precision.
+If you keep other deliberately-non-default priors in your normal
+registries, pass reference_specs=<your dict> to override what "the prior"
+means for a given call.
 
 Usage
 -----
@@ -71,6 +79,17 @@ def _reference_priors(reference_specs=None):
            if spec.get("prior") in _GAUSSIAN_FAMILY}
 
 
+def _overridden_params(row):
+    """Set of parameter names this row recorded as having been sampled
+    under a non-default prior shape (run.py's "prior_overrides" column,
+    formatted "name:prior|name:prior"). Empty for rows written before the
+    column existed -- those fall back to skip_pattern."""
+    raw = row.get("prior_overrides")
+    if raw is None or pd.isna(raw) or not str(raw).strip():
+        return set()
+    return {entry.split(":", 1)[0] for entry in str(raw).split("|") if entry}
+
+
 def scan_registry(registry_path, reference_specs=None, flag_shrinkage=0.2,
                   flag_pull=3.0, skip_pattern="uniformpriors",
                   output_csv=None):
@@ -88,10 +107,10 @@ def scan_registry(registry_path, reference_specs=None, flag_shrinkage=0.2,
         prior's own width).
     flag_pull       : rows with |pull| above this are flagged
         "prior_in_tension" (default 3.0 prior-sigma).
-    skip_pattern    : run_name substring that marks a row as having used
-        a non-default prior for these parameters (best-effort guard, see
-        module docstring's caveat) -- matching rows are skipped entirely,
-        not silently mis-scored.
+    skip_pattern    : run_name substring marking a row as having used
+        non-default priors. This is now only the FALLBACK for rows
+        predating the registry's "prior_overrides" column; rows that have
+        it get per-parameter skipping instead of whole-row skipping.
     output_csv      : defaults to "<registry_path stem>_prior_shrinkage.csv".
 
     Returns
@@ -103,15 +122,23 @@ def scan_registry(registry_path, reference_specs=None, flag_shrinkage=0.2,
 
     rows = []
     n_skipped = 0
+    n_skipped_params = 0
     for _, r in df.iterrows():
         run_name = str(r["run_name"])
         if skip_pattern and skip_pattern in run_name:
             n_skipped += 1
             continue
+        overridden = _overridden_params(r)
         active = (str(r["active_params"]).split("|")
                  if pd.notna(r.get("active_params")) else [])
         for name in active:
             if name not in ref:
+                continue
+            if name in overridden:
+                # Sampled under a different prior shape than reference_specs
+                # describes -- shrinkage/pull against that shape would be
+                # meaningless, so don't score it rather than mis-score it.
+                n_skipped_params += 1
                 continue
             mean_col, std_col = f"{name}_mean", f"{name}_std"
             if mean_col not in df.columns or std_col not in df.columns:
@@ -151,6 +178,9 @@ def scan_registry(registry_path, reference_specs=None, flag_shrinkage=0.2,
     print(f"Prior shrinkage scan: {registry_path}")
     print(f"{len(df)} run(s) in registry, {n_skipped} skipped "
          f"(run_name matched '{skip_pattern}')")
+    if n_skipped_params:
+        print(f"{n_skipped_params} (run, parameter) pair(s) skipped as "
+             f"non-default priors (registry 'prior_overrides' column)")
     n_runs_scored = report["run_name"].nunique() if len(report) else 0
     print(f"{len(report)} (run, parameter) row(s) scored across "
          f"{n_runs_scored} run(s)")
