@@ -1,0 +1,23 @@
+{
+  "_comment": "Baseline model = CONFIG['model'] defaults (mass=step, host_colour=linear, sn_colour=linear, ssfr=none, z_evolve=power, x1_correction=linear). No param_overrides needed: the only ACTIVE parameters under DEFAULT_PARAM_SPECS are alpha, beta, gamma, Om0 (M is analytically marginalised). true_params must give a truth for exactly those four.",
+
+  "model": {
+    "sn_colour":     "linear",
+    "x1_correction": "linear",
+    "mass":          "step",
+    "host_colour":   "linear",
+    "ssfr":          "none",
+    "z_evolve":      "power"
+  },
+
+  "true_params": {
+    "alpha": 0.15,
+    "beta":  3.0,
+    "gamma": 0.05,
+    "Om0":   0.30
+  },
+
+  "config_overrides": {
+    "nlive_mode": "exploratory"
+  }
+}

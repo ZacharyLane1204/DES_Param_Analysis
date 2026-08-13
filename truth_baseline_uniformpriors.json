@@ -1,0 +1,29 @@
+{
+  "_comment": "Same as truth_baseline.json but with alpha/beta/Om0 switched from their informative truncated_gaussian priors to uniform over the same hard range -- isolates how much of the recovery scatter/bias in truth_baseline.json comes from those informative priors vs. genuine data/degeneracy noise. Compare seed-by-seed against truth_baseline.json runs.",
+
+  "model": {
+    "sn_colour":     "linear",
+    "x1_correction": "linear",
+    "mass":          "step",
+    "host_colour":   "linear",
+    "ssfr":          "none",
+    "z_evolve":      "power"
+  },
+
+  "param_overrides": {
+    "alpha": {"prior": "uniform"},
+    "beta":  {"prior": "uniform"},
+    "Om0":   {"prior": "uniform"}
+  },
+
+  "true_params": {
+    "alpha": 0.15,
+    "beta":  3.0,
+    "gamma": 0.05,
+    "Om0":   0.30
+  },
+
+  "config_overrides": {
+    "nlive_mode": "exploratory"
+  }
+}

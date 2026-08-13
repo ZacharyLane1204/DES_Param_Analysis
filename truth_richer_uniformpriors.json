@@ -1,0 +1,41 @@
+{
+  "_comment": "Same model combo as truth_richer.json (softbroken SN colour, linear mass, tanh sSFR, gamma_alpha), but with alpha/beta/Om0 switched from informative truncated_gaussian priors to uniform over the same hard range -- isolates how much of any richer-model recovery bias/scatter comes from those three informative priors vs. genuine data/model-structure effects. Compare seed-by-seed against truth_richer.json runs.",
+
+  "model": {
+    "sn_colour":     "softbroken",
+    "x1_correction": "linear",
+    "mass":          "linear",
+    "host_colour":   "none",
+    "ssfr":          "tanh",
+    "z_evolve":      "power"
+  },
+
+  "param_overrides": {
+    "gamma_alpha": {"active": true,  "fixed": null},
+    "c0":          {"active": false, "fixed": 0.0},
+    "sn_tau":      {"active": true,  "fixed": 0.3},
+    "zeta":        {"active": true,  "fixed": 0.0},
+    "F0":          {"active": true,  "fixed": -10.5},
+    "ftau":        {"active": true,  "fixed": 0.5},
+    "gamma":       {"active": false, "fixed": 0.0},
+    "eta":         {"active": false, "fixed": 0.0},
+    "alpha":       {"prior": "uniform"},
+    "beta":        {"prior": "uniform"},
+    "Om0":         {"prior": "uniform"}
+  },
+
+  "true_params": {
+    "alpha":       0.15,
+    "beta":        3.0,
+    "Om0":         0.30,
+    "gamma_alpha": 0.5,
+    "sn_tau":      0.3,
+    "zeta":        0.1,
+    "F0":          -10.5,
+    "ftau":        0.5
+  },
+
+  "config_overrides": {
+    "nlive_mode": "exploratory"
+  }
+}

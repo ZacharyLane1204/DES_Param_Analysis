@@ -1,0 +1,336 @@
+\clearpage
+\onecolumngrid
+\begin{longtable}{c c c c c c c c}
+    \caption{Iterations} \label{tab:iterations} \\
+    \hline
+    \hline
+    Run & $N$ & Parameter List & Stretch & SN Colour & Mass & Host Colour & sSFR \\
+    \hline
+    \hline
+    \endfirsthead
+    \multicolumn{8}{c}{Table~\thetable{} \emph{(continued)}} \\
+    \hline
+    \hline
+    Run & $N$ & Parameter List & Stretch & SN Colour & Mass & Host Colour & sSFR \\
+    \hline
+    \hline
+    \endhead
+    \hline
+    \multicolumn{8}{r}{\emph{Continued on next page}} \\
+    \endfoot
+    \hline
+    \endlastfoot
+    \multicolumn{8}{c}{\textbf{Baseline}} \\
+    \hline
+    baseline & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & none \\
+    \hline
+    \multicolumn{8}{c}{\textbf{Cosmology}} \\
+    \hline
+    1 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & none \\
+    2 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\Omega_{\Lambda 0}^{}$ & linear & linear & step & linear & none \\
+    3 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $w$ & linear & linear & step & linear & none \\
+    \hline
+    \multicolumn{8}{c}{\textbf{Nuisance Parameters}} \\
+    \hline
+    4 & 2 & $\beta$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & none \\
+    5 & 2 & $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & none \\
+    6 & 2 & $\alpha$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & none \\
+    7 & 3 & $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & none \\
+    8 & 3 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & none \\
+    9 & 3 & $\alpha$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & none \\
+    \hline
+    \multicolumn{8}{c}{\textbf{Redshift Evolution}} \\
+    \hline
+    10 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$ & linear & linear & step & linear & none \\
+    11 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$ & linear & linear & step & linear & none \\
+    12 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$ & linear & linear & step & linear & none \\
+    13 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$ & linear & linear & step & linear & none \\
+    14 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $g$ & linear & linear & step & linear & none \\
+    15 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$ & linear & linear & step & linear & none \\
+    16 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$ & linear & linear & step & linear & none \\
+    17 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$ & linear & linear & step & linear & none \\
+    18 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$ & linear & linear & step & linear & none \\
+    19 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $g$ & linear & linear & step & linear & none \\
+    20 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$ & linear & linear & step & linear & none \\
+    21 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$ & linear & linear & step & linear & none \\
+    22 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$ & linear & linear & step & linear & none \\
+    23 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $g$ & linear & linear & step & linear & none \\
+    24 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $g$ & linear & linear & step & linear & none \\
+    25 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$ & linear & linear & step & linear & none \\
+    26 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $g$ & linear & linear & step & linear & none \\
+    27 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $g$ & linear & linear & step & linear & none \\
+    28 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$ & linear & linear & step & linear & none \\
+    29 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$, $g$ & linear & linear & step & linear & none \\
+    30 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$ & linear & linear & step & linear & none \\
+    31 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$, $g$ & linear & linear & step & linear & none \\
+    32 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$ & linear & linear & step & linear & none \\
+    33 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$ & linear & linear & step & linear & none \\
+    34 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$ & linear & linear & step & linear & none \\
+    35 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$, $g$ & linear & linear & step & linear & none \\
+    36 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$, $g$ & linear & linear & step & linear & none \\
+    37 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$, $g$ & linear & linear & step & linear & none \\
+    38 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $b$, $g$ & linear & linear & step & linear & none \\
+    39 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$ & linear & linear & step & linear & none \\
+    40 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$, $g$ & linear & linear & step & linear & none \\
+    41 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$, $g$ & linear & linear & step & linear & none \\
+    42 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$, $g$ & linear & linear & step & linear & none \\
+    43 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$, $g$ & linear & linear & step & linear & none \\
+    44 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$, $g$ & linear & linear & step & linear & none \\
+    45 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $a$, $b$, $g$ & linear & linear & step & linear & none \\
+    \hline
+    \multicolumn{8}{c}{\textbf{Interaction Terms}} \\
+    \hline
+    46 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\beta_\gamma^{}$ & linear & linear & step & linear & none \\
+    47 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\gamma_\alpha^{}$ & linear & linear & step & linear & none \\
+    48 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\beta_\alpha^{}$ & linear & linear & step & linear & none \\
+    49 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\beta_\alpha^{}$, $\gamma_\alpha^{}$, $\beta_\gamma^{}$ & linear & linear & step & linear & none \\
+    \hline
+    \multicolumn{8}{c}{\textbf{Stretch Correction}} \\
+    \hline
+    50 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & powerlaw & linear & step & linear & none \\
+    51 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & tanh & linear & step & linear & none \\
+    52 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & doublebroken & linear & step & linear & none \\
+    53 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & sigmoid & linear & step & linear & none \\
+    54 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & softbroken & linear & step & linear & none \\
+    55 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & asymm\_gauss\_weight & linear & step & linear & none \\
+    56 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\tau_{x_1}^{}$ & doublebroken & linear & step & linear & none \\
+    57 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\tau_{x_1}^{}$ & stepbroken & linear & step & linear & none \\
+    58 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\tau_{x_1}^{}$ & powerlaw & linear & step & linear & none \\
+    59 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\tau_{x_1}^{}$ & sigmoid & linear & step & linear & none \\
+    60 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $x_{1,\,0}^{}$ & tanh & linear & step & linear & none \\
+    61 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $x_{1,\,0}^{}$, $\tau_{x_1}^{}$ & softbroken & linear & step & linear & none \\
+    62 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $x_{1,\,0}^{}$ & quadratic & linear & step & linear & none \\
+    63 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\tau_{x_1}^{}$ & softbroken & linear & step & linear & none \\
+    64 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\tau_{x_1}^{}$ & asymm\_gauss\_weight & linear & step & linear & none \\
+    65 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $x_{1,\,0}^{}$, $\tau_{x_1}^{}$ & powerlaw & linear & step & linear & none \\
+    66 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $x_{1,\,0}^{}$, $\tau_{x_1}^{}$ & doublebroken & linear & step & linear & none \\
+    67 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $x_{1,\,0}^{}$, $\tau_{x_1}^{}$ & stepbroken & linear & step & linear & none \\
+    68 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $x_{1,\,0}^{}$, $\tau_{x_1}^{}$ & sigmoid & linear & step & linear & none \\
+    69 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $x_{1,\,0}^{}$, $\tau_{x_1}^{}$ & tanh & linear & step & linear & none \\
+    70 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $x_{1,\,0}^{}$, $\tau_{x_1}^{}$ & asymm\_gauss\_weight & linear & step & linear & none \\
+    71 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & stepbroken & linear & step & linear & none \\
+    \hline
+    \multicolumn{8}{c}{\textbf{SN Colour Model}} \\
+    \hline
+    72 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & tanh & step & linear & none \\
+    73 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & softbroken & step & linear & none \\
+    74 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $c_0^{\rm SN}$ & linear & dust & step & linear & none \\
+    75 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $c_0^{\rm SN}$ & linear & dust & step & linear & none \\
+    76 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\tau_S^{}$ & linear & softbroken & step & linear & none \\
+    77 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $c_0^{\rm SN}$ & linear & quadratic & step & linear & none \\
+    78 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $c_0^{\rm SN}$ & linear & broken & step & linear & none \\
+    79 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $c_0^{\rm SN}$ & linear & tanh & step & linear & none \\
+    80 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\tau_S^{}$ & linear & dust & step & linear & none \\
+    81 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $c_0^{\rm SN}$, $\tau_S^{}$ & linear & softbroken & step & linear & none \\
+    82 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $c_0^{\rm SN}$, $\tau_S^{}$ & linear & tanh & step & linear & none \\
+    83 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $c_0^{\rm SN}$, $\tau_S^{}$ & linear & dust & step & linear & none \\
+    84 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & stepbroken & step & linear & none \\
+    85 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & asymm\_gauss\_weight & step & linear & none \\
+    86 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\tau_S^{}$ & linear & asymm\_gauss\_weight & step & linear & none \\
+    87 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\tau_S^{}$ & linear & stepbroken & step & linear & none \\
+    88 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $c_0^{\rm SN}$, $\tau_S^{}$ & linear & asymm\_gauss\_weight & step & linear & none \\
+    89 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $c_0^{\rm SN}$, $\tau_S^{}$ & linear & stepbroken & step & linear & none \\
+    \hline
+    \multicolumn{8}{c}{\textbf{Mass Step}} \\
+    \hline
+    90 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & tanh & linear & none \\
+    91 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & gaussian\_weight & linear & none \\
+    92 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & double\_step & linear & none \\
+    93 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & sigmoid & linear & none \\
+    94 & 4 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & linear & linear & none \\
+    95 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\log_{10}^{}{\rm M}^0$ & linear & linear & sigmoid & linear & none \\
+    96 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\log_{10}^{}{\rm M}^0$ & linear & linear & tanh & linear & none \\
+    97 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\log_{10}^{}{\rm M}^0$ & linear & linear & gaussian\_weight & linear & none \\
+    98 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\log_{10}^{}{\rm M}^0$ & linear & linear & step & linear & none \\
+    99 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\log_{10}^{}{\rm M}^0$, $\tau_{\rm mass}^{}$ & linear & linear & sigmoid & linear & none \\
+    100 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\log_{10}^{}{\rm M}^0$, $\tau_{\rm mass}^{}$ & linear & linear & tanh & linear & none \\
+    101 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $k_1^{\rm spl}$, $k_2^{\rm spl}$, $k_3^{\rm spl}$ & linear & linear & spline & linear & none \\
+    102 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\log_{10}^{}{\rm M}^0$, $\log_{10}^{}{\rm M}^1$ & linear & linear & double\_step & linear & none \\
+    103 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\log_{10}^{}{\rm M}^0$, $\tau_{\rm mass}^{}$ & linear & linear & gaussian\_weight & linear & none \\
+    \hline
+    \multicolumn{8}{c}{\textbf{Host Colour Model}} \\
+    \hline
+    104 & 4 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$ & linear & linear & tanh & linear & none \\
+    105 & 4 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$ & linear & linear & linear & linear & none \\
+    106 & 4 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$ & linear & linear & sigmoid & linear & none \\
+    107 & 4 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$ & linear & linear & step & linear & none \\
+    108 & 4 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\eta$ & linear & linear & none & linear & none \\
+    109 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & none & asymm & none \\
+    110 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & tanh & sigmoid & none \\
+    111 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & sigmoid & none \\
+    112 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & step & sigmoid & none \\
+    113 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & linear & sigmoid & none \\
+    114 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$ & linear & linear & double\_step & linear & none \\
+    115 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & none & sigmoid & none \\
+    116 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$ & linear & linear & linear & linear & none \\
+    117 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & none & broken & none \\
+    118 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & none & tanh & none \\
+    119 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & tanh & quadratic & none \\
+    120 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & none & quadratic & none \\
+    121 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$ & linear & linear & step & linear & none \\
+    122 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & quadratic & none \\
+    123 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & linear & quadratic & none \\
+    124 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & step & quadratic & none \\
+    125 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & double\_step & asymm & none \\
+    126 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & linear & asymm & none \\
+    127 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\tau_{\rm host}^{}$ & linear & linear & none & asymm & none \\
+    128 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & step & asymm & none \\
+    129 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & linear & sigmoid & none \\
+    130 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & double\_step & sigmoid & none \\
+    131 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & double\_step & broken & none \\
+    132 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\tau_{\rm host}^{}$ & linear & linear & none & tanh & none \\
+    133 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & linear & broken & none \\
+    134 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\tau_{\rm host}^{}$ & linear & linear & none & sigmoid & none \\
+    135 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & linear & quadratic & none \\
+    136 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & linear & tanh & none \\
+    137 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & step & sigmoid & none \\
+    138 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$ & linear & linear & linear & linear & none \\
+    139 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & double\_step & quadratic & none \\
+    140 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & tanh & quadratic & none \\
+    141 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & step & broken & none \\
+    142 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & quadratic & none \\
+    143 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & step & quadratic & none \\
+    144 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & double\_step & tanh & none \\
+    145 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$ & linear & linear & sigmoid & linear & none \\
+    146 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$ & linear & linear & step & linear & none \\
+    147 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$ & linear & linear & step & tanh & none \\
+    148 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\tau_{\rm host}^{}$ & linear & linear & step & asymm & none \\
+    149 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & step & quadratic & none \\
+    150 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & linear & asymm & none \\
+    151 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & linear & sigmoid & none \\
+    152 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & asymm & none \\
+    153 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & step & sigmoid & none \\
+    154 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\tau_{\rm host}^{}$ & linear & linear & step & tanh & none \\
+    155 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & step & sigmoid & none \\
+    156 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\tau_{\rm host}^{}$ & linear & linear & step & sigmoid & none \\
+    157 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & sigmoid & none \\
+    158 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & step & asymm & none \\
+    159 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & linear & quadratic & none \\
+    160 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & tanh & none \\
+    161 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$ & linear & linear & sigmoid & linear & none \\
+    162 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & step & quadratic & none \\
+    163 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & quadratic & none \\
+    164 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & linear & tanh & none \\
+    165 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & linear & broken & none \\
+    166 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & step & tanh & none \\
+    167 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & broken & none \\
+    168 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & step & broken & none \\
+    169 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & sigmoid & sigmoid & none \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\xi_{\rm MC}^{}$, $\tau_{\rm mass}^{}$, $C_{\rm host}^{0}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    170 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & sigmoid & asymm & none \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\xi_{\rm MC}^{}$, $\tau_{\rm mass}^{}$, $C_{\rm host}^{0}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    171 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & sigmoid & tanh & none \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\xi_{\rm MC}^{}$, $\tau_{\rm mass}^{}$, $C_{\rm host}^{0}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    172 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & sigmoid & broken & none \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\xi_{\rm MC}^{}$, $\tau_{\rm mass}^{}$, $C_{\rm host}^{0}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    173 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & sigmoid & sigmoid & none \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    174 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & sigmoid & asymm & none \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    175 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & sigmoid & quadratic & none \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    176 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & sigmoid & tanh & none \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    177 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & sigmoid & broken & none \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    178 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & tanh & broken & none \\
+    179 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & tanh & asymm & none \\
+    180 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & step & asymm & none \\
+    181 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & broken & none \\
+    182 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & asymm & none \\
+    183 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & linear & asymm & none \\
+    184 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & step & broken & none \\
+    185 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $C_{\rm host}^{0}$ & linear & linear & linear & broken & none \\
+    186 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & tanh & broken & none \\
+    187 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & asymm & none \\
+    188 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & tanh & asymm & none \\
+    189 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & broken & none \\
+    190 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & sigmoid & sigmoid & none \\
+    191 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & tanh & sigmoid & none \\
+    192 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & step & broken & none \\
+    193 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\xi_{\rm MC}^{}$, $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$ & linear & linear & step & asymm & none \\
+    \hline
+    \multicolumn{8}{c}{\textbf{sSFR Host Environment}} \\
+    \hline
+    194 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$ & linear & linear & linear & linear & step \\
+    195 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$ & linear & linear & step & linear & tanh \\
+    196 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$ & linear & linear & step & linear & tanh \\
+    197 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$ & linear & linear & step & linear & sigmoid \\
+    198 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$ & linear & linear & step & linear & step \\
+    199 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$ & linear & linear & step & linear & step \\
+    200 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$ & linear & linear & step & linear & linear \\
+    201 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$ & linear & linear & sigmoid & linear & step \\
+    202 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, $\tau_S^{}$ & linear & linear & step & linear & sigmoid \\
+    203 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, $\tau_S^{}$ & linear & linear & step & linear & tanh \\
+    204 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, $\xi_{S,M}^{}$ & linear & linear & step & linear & tanh \\
+    205 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, S0 & linear & linear & step & linear & sigmoid \\
+    206 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, S0 & linear & linear & step & linear & tanh \\
+    207 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\zeta$ & linear & linear & step & linear & tanh \\
+    208 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\zeta$ & linear & linear & step & linear & tanh \\
+    209 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\zeta$ & linear & linear & step & linear & step \\
+    210 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\zeta$ & linear & linear & step & linear & sigmoid \\
+    211 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, $\xi_{S,M}^{}$ & linear & linear & sigmoid & linear & step \\
+    212 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\zeta$ & linear & linear & step & linear & step \\
+    213 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, $\xi_{S,M}^{}$ & linear & linear & linear & linear & step \\
+    214 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, $\xi_{S,M}^{}$ & linear & linear & step & linear & step \\
+    215 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, S0 & linear & linear & step & linear & step \\
+    216 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, S0, $\tau_S^{}$ & linear & linear & step & linear & sigmoid \\
+    217 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\zeta$ & linear & linear & step & asymm & step \\
+    218 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\zeta$ & linear & linear & step & sigmoid & step \\
+    219 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, S0, $\tau_S^{}$ & linear & linear & step & linear & tanh \\
+    220 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\zeta$ & linear & linear & step & tanh & tanh \\
+    221 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, S0, $\tau_S^{}$ & linear & linear & step & linear & tanh \\
+    222 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\zeta$, $\xi_{S,C}^{}$ & linear & linear & step & linear & tanh \\
+    223 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\zeta$ & linear & linear & step & quadratic & step \\
+    224 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\zeta$ & linear & linear & step & tanh & step \\
+    225 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\log_{10}^{}{\rm M}^0$, $\zeta$, S0 & linear & linear & sigmoid & linear & step \\
+    226 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $C_{\rm host}^{0}$, $\zeta$ & linear & linear & step & tanh & step \\
+    227 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\zeta$, $\xi_{S,C}^{}$ & linear & linear & step & linear & step \\
+    228 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$, $\zeta$ & linear & linear & step & linear & step \\
+    229 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\log_{10}^{}{\rm M}^0$, $\zeta$, S0 & linear & linear & step & linear & step \\
+    230 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & tanh \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\zeta$, $\xi_{S,M}^{}$, S0, $\tau_S^{}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    231 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & tanh \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\zeta$, S0, $\tau_S^{}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    232 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & sigmoid \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\zeta$, S0, $\tau_S^{}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    233 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & tanh & tanh \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $C_{\rm host}^{0}$, $\zeta$, $\xi_{S,C}^{}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    234 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & sigmoid & step \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $C_{\rm host}^{0}$, $\zeta$, $\xi_{S,C}^{}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    235 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & asymm & step \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $C_{\rm host}^{0}$, $\zeta$, $\xi_{S,C}^{}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    236 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & tanh & step \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $C_{\rm host}^{0}$, $\zeta$, $\xi_{S,C}^{}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    237 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & quadratic & step \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $C_{\rm host}^{0}$, $\zeta$, $\xi_{S,C}^{}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    238 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & step \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\log_{10}^{}{\rm M}^0$, $\zeta$, $\xi_{S,M}^{}$, S0 & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    239 & 9 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$ & linear & linear & step & tanh & step \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\log_{10}^{}{\rm M}^0$, $C_{\rm host}^{0}$, $\zeta$, S0 & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    240 & 4 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\zeta$ & linear & linear & none & none & step \\
+    241 & 4 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\zeta$ & linear & linear & none & linear & step \\
+    242 & 5 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$ & linear & linear & step & none & step \\
+    243 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\zeta$, S0 & linear & linear & none & linear & step \\
+    244 & 5 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\zeta$, S0 & linear & linear & none & none & step \\
+    245 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\zeta$, S0, $\tau_S^{}$ & linear & linear & none & linear & sigmoid \\
+    246 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\zeta$, S0, $\tau_S^{}$ & linear & linear & none & linear & tanh \\
+    247 & 6 & $\alpha$, $\beta$, $\Omega_{\rm M0}^{}$, $\zeta$, S0, $\tau_S^{}$ & linear & linear & none & none & tanh \\
+    248 & 6 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, S0 & linear & linear & step & none & step \\
+    249 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\zeta$, S0, $\tau_S^{}$ & linear & linear & step & none & tanh \\
+    250 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\zeta$, $\xi_{S,C}^{}$ & linear & linear & step & linear & step \\
+    251 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\zeta$, $\xi_{S,M}^{}$ & linear & linear & step & linear & step \\
+    252 & 7 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\zeta$, $\omega$ & linear & linear & step & linear & step \\
+    253 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & linear & step \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $\zeta$, $\xi_{S,C}^{}$, $\xi_{S,M}^{}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    254 & 8 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$ & linear & linear & step & tanh & step \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\eta$, $C_{\rm host}^{0}$, $\zeta$, $\xi_{S,C}^{}$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    255 & 10 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$ & linear & linear & step & linear & step \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\xi_{\rm MC}^{}$, $\zeta$, $\xi_{S,C}^{}$, $\xi_{S,M}^{}$, $\omega$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    256 & 11 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$ & linear & linear & step & tanh & step \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $C_{\rm host}^{0}$, $\zeta$, $\xi_{S,C}^{}$, $\xi_{S,M}^{}$, $\omega$ & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    257 & 12 & $\alpha$, $\beta$, $\gamma$, $\Omega_{\rm M0}^{}$, $\eta$, $\xi_{\rm MC}^{}$ & linear & linear & step & linear & step \\
+    \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & $\log_{10}^{}{\rm M}^0$, $\zeta$, $\xi_{S,C}^{}$, $\xi_{S,M}^{}$, $\omega$, S0 & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} & \multicolumn{1}{c}{} \\
+    \multicolumn{8}{l}{\textit{Note.}~Runs grouped by category.  Parameter lists over 7 entries continue below.}
+\end{longtable}
+\twocolumngrid

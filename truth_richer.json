@@ -1,0 +1,38 @@
+{
+  "_comment": "Richer model matching the 'checks/std_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhS0ftau_mass_linear' combo in extra_runners.py. param_overrides activates gamma_alpha/sn_tau/zeta/F0/ftau and deactivates gamma/eta/c0, exactly as that experiment does. Active parameters end up being: alpha, beta, Om0, gamma_alpha, sn_tau, zeta, F0, ftau -- true_params below gives a truth for every one of those (and only those).",
+
+  "model": {
+    "sn_colour":     "softbroken",
+    "x1_correction": "linear",
+    "mass":          "linear",
+    "host_colour":   "none",
+    "ssfr":          "tanh",
+    "z_evolve":      "power"
+  },
+
+  "param_overrides": {
+    "gamma_alpha": {"active": true,  "fixed": null},
+    "c0":          {"active": false, "fixed": 0.0},
+    "sn_tau":      {"active": true,  "fixed": 0.3},
+    "zeta":        {"active": true,  "fixed": 0.0},
+    "F0":          {"active": true,  "fixed": -10.5},
+    "ftau":        {"active": true,  "fixed": 0.5},
+    "gamma":       {"active": false, "fixed": 0.0},
+    "eta":         {"active": false, "fixed": 0.0}
+  },
+
+  "true_params": {
+    "alpha":       0.15,
+    "beta":        3.0,
+    "Om0":         0.30,
+    "gamma_alpha": 0.5,
+    "sn_tau":      0.3,
+    "zeta":        0.1,
+    "F0":          -10.5,
+    "ftau":        0.5
+  },
+
+  "config_overrides": {
+    "nlive_mode": "exploratory"
+  }
+}
