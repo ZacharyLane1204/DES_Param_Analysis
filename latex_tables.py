@@ -1230,6 +1230,133 @@ def generate_uniform_checks_table(registry_path=None):
     )
 
 
+def generate_host_error_table(registry_path=None, label="best"):
+    r"""
+    TABLE 8 — host measurement error treatment (matched-pair systematic).
+
+    Reads the "hosterr/" rows written by extra_runners.py and differences
+    them against "hosterr/<label>_ref", the same model under the default
+    error treatment.  Every row fits the same model on the same SNe and
+    changes only how the host mass / colour / sSFR measurement errors are
+    handled, so the deltas isolate that choice.
+
+    Two distinct effects are being separated here:
+
+      * the quadrature already in the likelihood corrects the BIAS from
+        evaluating a nonlinear host profile at a noisy host property
+        (it computes E[f]).  For a *linear* profile this changes nothing,
+        so linear-model rows will match the reference exactly;
+
+      * "var" rows additionally add Var[f] to the covariance diagonal,
+        i.e. the extra scatter that the same measurement error injects
+        into mu.  This is always a net penalty on ln Z for this sample,
+        because chi2/dof sits slightly below 1 and the log-determinant
+        cost outweighs the chi2 gain.  It therefore cannot flatter a fit.
+
+    The "no colour err" rows exist because HOST_COLOR_ERR is unpopulated
+    in the DES metadata: without a derived error the host colour would be
+    the only host property treated as exactly measured, which would hand
+    the host colour models an unearned advantage.
+
+    Parameters
+    ----------
+    registry_path : defaults to "run_checks_registry.csv".
+    label         : the HOSTERR_BEST label used in the run tags.
+    """
+    if registry_path is None:
+        registry_path = "run_checks_registry.csv"
+    try:
+        df = pd.read_csv(registry_path)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Checks registry not found: {registry_path}. "
+            f"Run extra_runners.py --tag hosterr/ first.")
+
+    df = df[df["run_name"].astype(str).str.contains("hosterr/", na=False)]
+    if df.empty:
+        raise RuntimeError(
+            f"No 'hosterr/' rows in {registry_path}. Run "
+            f"`python extra_runners.py --tag hosterr/ --publication` first.")
+
+    base_name = f"hosterr/{label}_ref"
+    base_mask = df["run_name"].astype(str) == base_name
+    if not base_mask.any():
+        raise RuntimeError(
+            f"No '{base_name}' row in {registry_path}. That run is the "
+            f"matched reference every delta in this table is measured "
+            f"against, so the table cannot be built without it.")
+
+    b             = df[base_mask].iloc[0]
+    base_aic      = _read_float(b, "AIC")
+    base_bic      = _read_float(b, "BIC")
+    base_logz     = _read_float(b, "logZ")
+    base_logz_err = _read_float(b, "logZ_err")
+
+    # Human-readable descriptions, keyed by the tag suffix used in
+    # extra_runners._HOSTERR_VARIANTS.
+    _DESC = {
+        "ref":                 "ref",
+        "varpen":              r"$+\,\mathrm{Var}[f]$",
+        "nocolourerr":         "no colour err",
+        "nocolourerr_varpen":  r"no colour err $+\,\mathrm{Var}[f]$",
+        "slope050":            r"colour err slope $0.50$",
+        "slope115":            r"colour err slope $1.15$",
+        "ssfrmask20":          r"sSFR mask $2.0$ dex",
+        "ssfrmask30":          r"sSFR mask $3.0$ dex",
+        "nossfrmask":          "no sSFR mask",
+        "noerrors":            "no host errors at all",
+        "gh80":                r"$K=80$ nodes",
+        "gh80_varpen":         r"$K=80$, $+\,\mathrm{Var}[f]$",
+    }
+
+    NCOLS = 7
+    col_header = (
+        r"Treatment & $N$ & $\chi^2$ & $\chi^2/\mathrm{d.o.f}$"
+        r" & $\Delta$AIC & $\Delta$BIC & $\Delta\ln B$"
+    )
+    col_spec = r"l c c c c c c"
+
+    ordered = pd.concat([df[base_mask], df[~base_mask]])
+
+    def _first_col(row):
+        name   = str(row.get("run_name", ""))
+        suffix = name.split("/", 1)[-1]
+        if suffix.startswith(label + "_"):
+            suffix = suffix[len(label) + 1:]
+        return _DESC.get(suffix, _esc(suffix.replace("_", " ")))
+
+    data_rows = _build_evidence_rows(
+        ordered, base_aic, base_bic, base_logz, base_logz_err,
+        baseline_run_name=base_name,
+        first_col_fn=_first_col,
+    )
+
+    return _lt_wrap(
+        col_spec        = col_spec,
+        caption         = "Systematic check: host measurement error treatment",
+        label           = "tab:host_error",
+        col_header_line = col_header,
+        data_rows       = data_rows,
+        ncols           = NCOLS,
+        notes           = (
+            r"Every row fits the same model on the same supernovae and "
+            r"varies only the treatment of the host mass, host colour and "
+            r"sSFR measurement errors; deltas are against the reference "
+            r"row, marked \textit{ref}.  The default treatment marginalises "
+            r"each host property over its measurement error by "
+            r"Gauss--Hermite quadrature, derives the host colour error as "
+            r"$\sigma_{\log M}/0.70$ (Taylor et al. 2011) because "
+            r"\texttt{HOST\_COLOR\_ERR} is unpopulated, and masks sSFR "
+            r"measurements quoted with $\sigma>2.5$ dex.  Masked "
+            r"supernovae are retained in the sample so that all evidences "
+            r"remain comparable.  Rows marked $+\,\mathrm{Var}[f]$ "
+            r"additionally propagate the measurement error as a variance "
+            r"on the covariance diagonal, which is always a net penalty "
+            r"here and so cannot flatter a fit."
+        ),
+    )
+
+
 def generate_uniform_priors_table():
     r"""
     TABLE 7 — the broad uniform priors used by the additional checks.
@@ -1434,6 +1561,15 @@ def _parse_args():
     p.add_argument("--uniform-priors", action="store_true",
                    dest="uniform_priors",
                    help="Generate the prior table for those uniform checks.")
+    p.add_argument("--host-error", action="store_true",
+                   dest="host_error",
+                   help="Generate the host measurement error systematic-check "
+                        "table from extra_runners.py's 'hosterr/' runs "
+                        "(see --checks-registry and --host-error-label).")
+    p.add_argument("--host-error-label", default="best",
+                   dest="host_error_label",
+                   help="HOSTERR_BEST label used in the hosterr/ run tags "
+                        "(default: best).")
     p.add_argument("--drilling-cones", action="store_true",
                    help="Generate the drilling-cones systematic-check table "
                         "from a CSV written by drilling_cones.py / "
@@ -1459,9 +1595,9 @@ def main():
     args = _parse_args()
     if not any([args.priors, args.iterations, args.evidence,
                 args.checks, args.additional_checks, args.uniform_priors,
-                args.drilling_cones, args.preamble]):
+                args.host_error, args.drilling_cones, args.preamble]):
         print("Specify: --priors  --iterations  --evidence  --checks  "
-              "--additional-checks  --uniform-priors  "
+              "--additional-checks  --uniform-priors  --host-error  "
               "--drilling-cones  --preamble")
         sys.exit(1)
     if args.drilling_cones and not args.drilling_cones_csv:
@@ -1487,6 +1623,10 @@ def main():
     if args.additional_checks:
         parts.append(generate_uniform_checks_table(
             registry_path=args.uniform_registry))
+    if args.host_error:
+        parts.append(generate_host_error_table(
+            registry_path=args.checks_registry,
+            label=args.host_error_label))
     if args.drilling_cones:
         parts.append(generate_drilling_cones_table(args.drilling_cones_csv))
 

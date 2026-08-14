@@ -320,6 +320,15 @@ def _registry_row(run_name, config, param_specs, active_names, results,
                for n in active_names
                if n in DEFAULT_PARAM_SPECS
                and param_specs[n].get("prior") != DEFAULT_PARAM_SPECS[n].get("prior")),
+           # How the host mass/colour/sSFR measurement errors were treated.
+           # Recorded per run so that host-error checks (extra_runners.py's
+           # "hosterr/" section) can be told apart in the registry, and so
+           # that any run predating these switches is not silently compared
+           # against one that uses them.
+           "n_gh_nodes":      config.get("n_gh_nodes", 20),
+           "host_colour_err": data.get("host_colour_err_mode", "unknown"),
+           "ssfr_err_max":    config.get("ssfr_err_max", None),
+           "host_var_penalty": bool(config.get("host_var_penalty", False)),
            # Posterior means and stds for every active parameter
            **{f"{n}_mean": round(param_means[n], 5) for n in active_names},
            **{f"{n}_std":  round(param_stds[n],  5) for n in active_names},
@@ -1047,7 +1056,8 @@ def load_and_filter_data(config):
     data["gh_weights"] = gh_weights
     print(f"Host error marginalisation: {n_gh_nodes} Gauss-Hermite nodes")
 
-    def _quadrature_draws(col_name, point_vals, label):
+    def _quadrature_draws(col_name, point_vals, label, err_override=None,
+                          err_max=None):
         """
         Return an (N, K) array of quadrature abscissas around point_vals.
 
@@ -1060,9 +1070,19 @@ def load_and_filter_data(config):
           preserved as NaN in every draw, so the downstream profile
           functions' existing np.isfinite(...) -> 0.0 handling (e.g.
           ssfr_tanh) still fires correctly under quadrature.
+        - err_override supplies a derived error array in place of a data
+          column (used for the host colour, whose error column is not
+          populated in the DES metadata).
+        - err_max masks SNe whose quoted error exceeds the threshold: the
+          point estimate becomes NaN, so that SN contributes nothing to
+          this profile.  The SN is deliberately NOT dropped from the
+          sample, so every model is still compared on identical objects.
         """
         n = len(point_vals)
-        if col_name and col_name in df.columns:
+        if err_override is not None:
+            err = np.where(np.isfinite(err_override) & (err_override >= 0),
+                           err_override, 0.0)
+        elif col_name and col_name in df.columns:
             err = df[col_name].values.astype(float)
             err = np.where(np.isfinite(err) & (err >= 0), err, 0.0)
             n_err = int(np.sum(err > 0))
@@ -1072,6 +1092,15 @@ def load_and_filter_data(config):
             err = np.zeros(n)
             print(f"  {label:14s}: absent -> treated as exact (zero error)")
 
+        point_vals = np.asarray(point_vals, dtype=float)
+        if err_max is not None:
+            bad = err > err_max
+            if bad.any():
+                print(f"  {label:14s}: masking {int(bad.sum())}/{n} SNe with "
+                      f"quoted error > {err_max} (point estimate -> NaN; "
+                      f"SNe retained in the sample)")
+                point_vals = np.where(bad, np.nan, point_vals)
+
         pv          = np.where(np.isfinite(point_vals), point_vals, 0.0)
         draws       = pv[:, None] + err[:, None] * gh_eps[None, :]
         missing_pt  = ~np.isfinite(point_vals)
@@ -1080,10 +1109,65 @@ def load_and_filter_data(config):
 
     data["logM_draws"] = _quadrature_draws(
         config.get("col_logM_err"), data["logM"], "logM err")
+
+    # ---- Host colour error -------------------------------------------------
+    # HOST_COLOR_ERR is present in the DES metadata but never populated (it is
+    # -999 for every SN), so the host colour would otherwise be the only host
+    # property treated as exactly measured, while mass and sSFR are smoothed
+    # by their errors.  That asymmetry is not physical: it would hand the host
+    # colour models an unearned advantage.
+    #
+    # HOST_COLOR and HOST_LOGMASS come out of the same SED fit to the same
+    # host photometry, so their uncertainties are physically linked.  We
+    # therefore derive a host colour error from HOST_LOGMASS_ERR using the
+    # slope of the mass-to-light/colour relation (Taylor et al. 2011,
+    # log(M*/L_i) = 1.15 + 0.70 (g-i), so d logM / d colour = 0.70):
+    #
+    #     sigma_colour ~= sigma_logM / host_colour_err_mass_slope
+    #
+    # This is conservative (an upper bound), because sigma_logM also absorbs
+    # distance, luminosity and model terms that do not come from the colour.
+    # It is a DERIVED quantity, never a measured one — set
+    # host_colour_err_from_logmass=False to switch it off.
+    hc_err_col = config.get("col_host_colour_err")
+    hc_err_raw = (df[hc_err_col].values.astype(float)
+                  if hc_err_col and hc_err_col in df.columns else None)
+    hc_usable  = (hc_err_raw is not None
+                  and np.any(np.isfinite(hc_err_raw) & (hc_err_raw > 0)))
+    hc_derived = None
+    if config.get("host_colour_err_from_logmass", True) and not hc_usable:
+        slope = float(config.get("host_colour_err_mass_slope", 0.70))
+        logm_err = df[config["col_logM_err"]].values.astype(float) \
+            if config.get("col_logM_err") in df.columns else None
+        if logm_err is not None and slope > 0:
+            hc_derived = np.where(np.isfinite(logm_err) & (logm_err > 0),
+                                  logm_err / slope, 0.0)
+            print(f"  {'host colour err':14s}: column '{hc_err_col}' is not "
+                  f"populated; DERIVED as HOST_LOGMASS_ERR / {slope} "
+                  f"(Taylor+2011 mass-colour slope) — median "
+                  f"{np.median(hc_derived[hc_derived > 0]):.4f} mag")
+    data["host_colour_err_derived"] = hc_derived is not None
+    if hc_derived is not None:
+        slope = float(config.get("host_colour_err_mass_slope", 0.70))
+        data["host_colour_err_mode"] = f"logmass/{slope:.2f}"
+    elif hc_usable:
+        data["host_colour_err_mode"] = "column"
+    else:
+        data["host_colour_err_mode"] = "none"
     data["host_colour_draws"] = _quadrature_draws(
-        config.get("col_host_colour_err"), data["host_colour"], "host colour err")
+        hc_err_col, data["host_colour"], "host colour err",
+        err_override=hc_derived)
+
+    # ---- sSFR error --------------------------------------------------------
+    # HOST_LOGsSFR_ERR is bimodal: a well-measured population plus a pileup of
+    # failure-mode values around 10 dex, far larger than the entire population
+    # spread (~2.4 dex).  Those carry no information, so their point estimates
+    # are masked (set to NaN) rather than capped — capping would keep a
+    # meaningless value and give it artificial weight.  The SNe stay in the
+    # sample so evidences remain comparable across models.
     data["logsSFR_draws"] = _quadrature_draws(
-        config.get("col_logsSFR_err"), data["logsSFR"], "sSFR err")
+        config.get("col_logsSFR_err"), data["logsSFR"], "sSFR err",
+        err_max=config.get("ssfr_err_max", None))
 
     # ---- Precompute data-derived quantities stored in data dict ----
 
@@ -1190,6 +1274,11 @@ def load_and_filter_data(config):
                          "adding muerr/sigma_int diagonal terms.")
 
     C_sum = float(np.sum(inv_cov_mat))
+
+    # Stashed for the optional host-variance likelihood path, which needs the
+    # full covariance (muerr/sigma_int included, host variance excluded) so it
+    # can add a parameter-dependent diagonal and refactorise per call.
+    data["cov_full"] = cov_full
 
     # `cov_mat` here is still the pure geometric covariance (pre-muerr,
     # pre-sigma_int) as documented — callers that need the full covariance
@@ -1378,8 +1467,33 @@ def run_sampler(config, preloaded=None):
 
     # ---- Build and run sampler ----
     ptform = make_prior_transform(param_specs, active_names)
+
+    # Optional: propagate host measurement error as a VARIANCE as well as a
+    # bias (see core.compute_mu_corr / cov_log_likelihood_hetero).  This makes
+    # the covariance parameter dependent, so it must be refactorised on every
+    # likelihood call — O(N^3) instead of O(N^2).  Off by default; enable it
+    # for targeted systematic checks, not for production sweeps.
+    host_var = bool(config.get("host_var_penalty", False))
+    cov_base = None
+    if host_var:
+        cov_base = data.get("cov_full")
+        if cov_base is None:
+            raise ValueError("host_var_penalty is enabled but the full "
+                             "covariance was not stashed by "
+                             "load_and_filter_data (stale preloaded data?).")
+        if cov_base.shape[0] != len(data["z"]):
+            raise ValueError(
+                f"host_var_penalty: stashed covariance is "
+                f"{cov_base.shape[0]}x{cov_base.shape[0]} but there are "
+                f"{len(data['z'])} SNe. Callers that subset the sample "
+                f"(loo_zbins, drilling_cones) must refactorise their own "
+                f"covariance subset before enabling this.")
+        print("Host variance penalty: ON — covariance refactorised per "
+              "likelihood call (much slower; intended for systematic checks)")
+
     logl   = make_loglike(data, inv_cov_mat, log_det_const, C_sum,
-                          param_specs, active_names, model_cfg, cosmo_type)
+                          param_specs, active_names, model_cfg, cosmo_type,
+                          cov_base=cov_base)
 
     # ---- Sampler mode ----
     # Set "sampler_mode": "dynamic" in CONFIG (or per-experiment config_overrides)

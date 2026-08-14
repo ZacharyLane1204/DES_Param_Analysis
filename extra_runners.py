@@ -1244,7 +1244,123 @@ EXPERIMENTS = [
             # robustness checks on the chosen best model (this section, the
             # c-cut variants above, etc.) -- see uniform_priors_check.py for
             # the prior-shrinkage/degeneracy-driven uniform-prior reruns.
-    ]
+    ] 
+
+# ===========================================================================
+# HOST MEASUREMENT ERROR SYSTEMATIC CHECK
+# ===========================================================================
+# Matched-pair checks on how the host mass / host colour / sSFR measurement
+# errors are treated.  Every entry below fits the SAME model on the SAME
+# 1820 SNe and changes only the error treatment, so the lnZ differences are
+# attributable to that choice alone.
+#
+# The three switches under test (all defined in config.py):
+#
+#   host_colour_err_from_logmass
+#       HOST_COLOR_ERR is -999 for every SN in the DES metadata.  Left alone,
+#       the host colour would be the only host property treated as exactly
+#       measured while mass and sSFR are smoothed by their errors -- an
+#       asymmetry that flatters the host colour models.  With this on, the
+#       colour error is derived as HOST_LOGMASS_ERR / slope, the slope coming
+#       from the Taylor+2011 mass-to-light/colour relation.
+#
+#   ssfr_err_max
+#       HOST_LOGsSFR_ERR is bimodal, with a failure-mode pileup near 10 dex
+#       (larger than the entire ~2.4 dex population spread).  Above this
+#       threshold the sSFR point estimate is masked to NaN.  The SN is kept
+#       in the sample so evidences stay comparable.
+#
+#   host_var_penalty
+#       Adds Var[f] to the covariance diagonal, i.e. accounts for the extra
+#       SCATTER the host measurement error injects into mu, not just the bias
+#       correction that the quadrature already applies.  This is the
+#       expensive one: the covariance becomes parameter dependent and must be
+#       refactorised on every likelihood call.  Expect these runs to take
+#       substantially longer than their reference twin.
+#
+# ---------------------------------------------------------------------------
+# EDIT THIS after model_comparison_suite.py has picked the best model.
+# It must describe exactly one model -- the same combination you feed to
+# combo_ablation_checks.py -- so the pairs below are true like-for-like.
+# ---------------------------------------------------------------------------
+HOSTERR_BEST = {
+    "label": "best",
+    # Model selection (merged on top of CONFIG["model"]).
+    "model": {"sn_colour":   "softbroken",
+              "mass":        "linear",
+              "host_colour": "linear",
+              "ssfr":        "tanh"},
+    # Parameter activations for that model.
+    "param_overrides": {
+        "gamma_alpha": {"active": True,  "fixed": None},
+        "c0":          {"active": False, "fixed": 0},
+        "sn_tau":      {"active": True,  "fixed": 0.3},
+        "gamma":       {"active": True,  "fixed": 0.0},
+        "eta":         {"active": True,  "fixed": 0.0},
+        "zeta":        {"active": True,  "fixed": 0.0},
+        "F0":          {"active": True,  "fixed": -10.5},
+        "ftau":        {"active": True,  "fixed": 0.5},
+        "w":           {"active": False, "fixed": -1},
+    },
+}
+
+_HOSTERR_REGISTRY = "run_checks_registry.csv"
+
+# (tag suffix, config overrides on top of the reference treatment, comment)
+# The reference treatment is whatever config.py defaults to, which is:
+#   host_colour_err_from_logmass=True, ssfr_err_max=2.5, host_var_penalty=False
+_HOSTERR_VARIANTS = [
+    # --- reference -------------------------------------------------------
+    ("ref",              {}),
+    # --- the expensive variance term, on ---------------------------------
+    ("varpen",           {"host_var_penalty": True}),
+    # --- isolate the host colour asymmetry -------------------------------
+    ("nocolourerr",      {"host_colour_err_from_logmass": False}),
+    ("nocolourerr_varpen", {"host_colour_err_from_logmass": False,
+                            "host_var_penalty": True}),
+    # --- sensitivity to the assumed Taylor+2011 slope --------------------
+    # The literature spans roughly 0.5-1.15; a smaller slope means a LARGER
+    # derived colour error, so 0.50 is the pessimistic end.
+    ("slope050",         {"host_colour_err_mass_slope": 0.50}),
+    ("slope115",         {"host_colour_err_mass_slope": 1.15}),
+    # --- sensitivity to the sSFR mask threshold --------------------------
+    ("ssfrmask20",       {"ssfr_err_max": 2.0}),
+    ("ssfrmask30",       {"ssfr_err_max": 3.0}),
+    ("nossfrmask",       {"ssfr_err_max": None}),
+    # --- all host measurement error switched off (pre-existing behaviour) -
+    # Point estimates only: no smoothing, no derived colour error, no mask.
+    ("noerrors",         {"col_logM_err": None,
+                          "col_host_colour_err": None,
+                          "col_logsSFR_err": None,
+                          "host_colour_err_from_logmass": False,
+                          "ssfr_err_max": None}),
+    # --- quadrature convergence -------------------------------------------
+    # Discontinuous profiles (mass/ssfr "step") converge slowly under
+    # Gauss-Hermite quadrature, and the second moment converges more slowly
+    # than the first.  If the best model uses a step, compare this against
+    # "ref" (and against "varpen" for the variance term) before trusting the
+    # host-error deltas at the 0.1 lnZ level.
+    ("gh80",             {"n_gh_nodes": 80}),
+    ("gh80_varpen",      {"n_gh_nodes": 80, "host_var_penalty": True}),
+]
+
+
+def _host_error_checks():
+    """Build the matched-pair host measurement error checks for the best model."""
+    best   = HOSTERR_BEST
+    label  = best["label"]
+    out    = []
+    for suffix, overrides in _HOSTERR_VARIANTS:
+        cfg_over = {"model": {**CONFIG["model"], **best["model"]},
+                    "registry_file": _HOSTERR_REGISTRY}
+        cfg_over.update(overrides)
+        out.append(_build(f"hosterr/{label}_{suffix}",
+                          config_overrides=cfg_over,
+                          param_overrides=best["param_overrides"]))
+    return out
+
+
+EXPERIMENTS += _host_error_checks()
 
 # ===========================================================================
 # RUNNER
