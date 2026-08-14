@@ -457,6 +457,63 @@ CONFIG = {
     # product that dominates runtime.
     "n_gh_nodes": 40,
 
+    # ---- Derived host colour error ----
+    # HOST_COLOR_ERR exists in the DES metadata but is -999 for every SN, so
+    # without this the host colour would be the only host property treated as
+    # exactly measured while mass and sSFR are smoothed by their errors — an
+    # asymmetry that flatters the host colour models.
+    #
+    # HOST_COLOR and HOST_LOGMASS come from the same SED fit to the same host
+    # photometry, so their uncertainties are physically linked.  When the
+    # colour error column is unpopulated we therefore derive
+    #     sigma_colour = HOST_LOGMASS_ERR / host_colour_err_mass_slope
+    # with the slope taken from the mass-to-light/colour relation of
+    # Taylor et al. 2011 (log(M*/L_i) = 1.15 + 0.70 (g-i)  =>  slope 0.70).
+    # This gives a median ~0.037 mag against a host colour spread of ~0.50 mag.
+    #
+    # Sanity checks behind this choice: HOST_LOGMASS_ERR correlates with host
+    # apparent magnitude at +0.61 (fainter host -> larger error, the correct
+    # sign) and only weakly with MUERR (-0.25).  SN-side proxies were tested
+    # and rejected: mBERR correlates with MUERR at +0.55 (it is a *component*
+    # of MUERR, so it would couple the x- and y-errors by construction) and
+    # with host magnitude at -0.24, i.e. the wrong sign.
+    #
+    # This is a DERIVED error, never a measured one.  Vary the slope (the
+    # literature spans roughly 0.5-1.15) as a systematic; set
+    # host_colour_err_from_logmass=False to disable it entirely.  If the
+    # colour error column is ever properly populated, the real values win.
+    "host_colour_err_from_logmass": True,
+    "host_colour_err_mass_slope":   0.70,
+
+    # ---- sSFR error masking ----
+    # HOST_LOGsSFR_ERR is bimodal: a well-measured population, and a pileup of
+    # failure-mode values near 10 dex — far larger than the whole population
+    # spread (~2.4 dex), with a clean valley at 2-3 dex separating the two.
+    # SNe above this threshold have their sSFR point estimate set to NaN, so
+    # they contribute nothing to the sSFR profile.  They are deliberately NOT
+    # dropped from the sample: every model must be compared on the same
+    # objects or the evidences stop being comparable.  Set to None to disable.
+    "ssfr_err_max": 2.5,
+
+    # ---- Host measurement error as a variance (systematic check) ----
+    # The Gauss-Hermite quadrature above corrects the BIAS from evaluating a
+    # nonlinear profile at a noisy host property (it computes E[f]).  It does
+    # not account for the extra SCATTER that the same noise injects into
+    # mu_corr, which requires adding Var[f] to the covariance diagonal.
+    #
+    # That term is parameter dependent, so the covariance can no longer be
+    # factorised once and cached: it must be refactorised on every likelihood
+    # call, which is O(N^3) instead of O(N^2).  (A perturbative update of the
+    # cached inverse was tested and rejected — for realistic sSFR errors the
+    # correction reaches ~25x the covariance diagonal, where the series
+    # diverges.)  It is therefore OFF by default and enabled only for the
+    # matched-pair systematic check in extra_runners.py.
+    #
+    # The term is always a net penalty on lnZ: because chi2/dof is slightly
+    # below 1 for this sample, the log-determinant cost always outweighs the
+    # chi2 gain.  It cannot be used to flatter a fit.
+    "host_var_penalty": False,
+
     # ---- Data filters (applied before any analysis) ----
     # Redshift cuts: set either or both to restrict the redshift range.
     #   "zlo": 0.1   -> keep only SNe with z >= 0.1   (discard low-z)

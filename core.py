@@ -92,6 +92,25 @@ Z_PIVOT_RUNTIME: float = 0.5   # safe fallback; run.py always overrides
 # mass="double_step" are true discontinuities, where quadrature (like plain
 # Monte Carlo) loses its fast convergence rate right at the threshold —
 # use a larger K (20-30) for those.  See CONFIG["n_gh_nodes"] in config.py.
+#
+# Mean vs variance
+# ----------------
+# The above gives E[f], which removes the BIAS from evaluating a nonlinear f
+# at a noisy x.  Note that for a LINEAR profile E[f(x)] = f(E[x]) exactly, so
+# smoothing a linear model changes nothing — that is correct behaviour, not a
+# bug.  What E[f] does not capture is the extra SCATTER the same measurement
+# error injects into mu_corr, which requires adding Var[f] to the covariance
+# diagonal.  That is implemented (compute_mu_corr(..., return_var=True) and
+# cov_log_likelihood_hetero) but is OFF by default, because it makes the
+# covariance parameter dependent and so forfeits the "factorise once" design
+# above: every likelihood call then costs O(N^3) instead of O(N^2).
+#
+# Var[f] is computed exactly rather than by linearisation.  G is multilinear
+# in the three host profiles and their measurement errors are independent, so
+# E[G^2] factorises into univariate moments that this same 1-D quadrature
+# supplies — no K^3 tensor grid is required.  Be aware that the second moment
+# converges more slowly than the first for the discontinuous profiles, so
+# raise K further if the best model uses a step.
 
 def gauss_hermite_nodes(K=20):
     """
@@ -992,7 +1011,7 @@ def mu_theory(z, Om0, w=-1.0, Ode0=0.7, cosmo_type="FlatLambdaCDM"):
 # 3.  DISTANCE MODULUS RESIDUAL  (M excluded — marginalised separately)
 # ===========================================================================
 
-def compute_mu_corr(data, params, model_cfg):
+def compute_mu_corr(data, params, model_cfg, return_var=False):
     """
     Return the corrected distance modulus array with M excluded.
 
@@ -1014,10 +1033,24 @@ def compute_mu_corr(data, params, model_cfg):
                        gh_weights}          # (K,) quadrature weights, sum 1
     params    : dict  full parameter set (active + fixed combined)
     model_cfg : dict  model-selection strings
+    return_var: bool  if True, also return Var[mu_corr] induced by the host
+                      measurement errors (see below).
 
     Returns
     -------
     mu_corr : ndarray, shape (N,)
+        or, when return_var=True, the tuple (mu_corr, var_mu).
+
+    Host measurement error: mean vs variance
+    ----------------------------------------
+    The quadrature below gives E[f(x_true)] for each host profile, which
+    corrects the *bias* from evaluating a nonlinear f at a noisy x.  It does
+    not, on its own, account for the extra *scatter* that the same noise
+    injects into mu_corr.  Doing that properly requires adding Var[mu_corr]
+    to the covariance diagonal, which makes the covariance parameter
+    dependent and so forces a refactorisation on every likelihood call (see
+    cov_log_likelihood_hetero).  That is why it is opt-in via return_var
+    rather than always on.
 
     Host environment term
     ---------------------
@@ -1069,11 +1102,13 @@ def compute_mu_corr(data, params, model_cfg):
 
     # Guard: x0 must be positive for log10
     if np.any(x0 <= 0):
-        return np.full(len(x0), np.nan)
+        bad = np.full(len(x0), np.nan)
+        return (bad, bad) if return_var else bad
 
     # Guard: double_step requires M1 > M0
     if model_cfg["mass"] == "double_step" and M1 <= M0:
-        return np.full(len(x0), np.nan)
+        bad = np.full(len(x0), np.nan)
+        return (bad, bad) if return_var else bad
 
     # SN colour correction
     # c_centre is only consumed by sn_colour_quadratic; all other models
@@ -1111,20 +1146,23 @@ def compute_mu_corr(data, params, model_cfg):
     # returns an (N, K) array unchanged in shape; the quadrature weights then
     # collapse the K axis to the expectation E[L] under logM's measurement
     # error (mass_spline's np.interp also broadcasts correctly over 2-D x).
-    L = MASS_MODELS[model_cfg["mass"]](
+    L_k = MASS_MODELS[model_cfg["mass"]](
         logM_draws, M0=M0, tau=tau, M1=M1,
         k1=k1, k2=k2, k3=k3,
-        logM_knots=data.get("logM_knots")) @ gh_weights
+        logM_knots=data.get("logM_knots"))
+    L = L_k @ gh_weights
 
     # Host colour correction
-    H = HOST_COLOUR_MODELS[model_cfg["host_colour"]](
-        host_draws, C0=C0, htau=htau) @ gh_weights
+    H_k = HOST_COLOUR_MODELS[model_cfg["host_colour"]](
+        host_draws, C0=C0, htau=htau)
+    H = H_k @ gh_weights
 
     # sSFR profile.  ssfr_* models already zero out NaN (missing sSFR) rows;
     # run.py preserves per-row NaN in sfr_draws so that masking still applies
     # correctly under quadrature.
-    S = SSFR_MODELS[model_cfg.get("ssfr", "none")](
-        sfr_draws, F0=F0, ftau=ftau) @ gh_weights
+    S_k = SSFR_MODELS[model_cfg.get("ssfr", "none")](
+        sfr_draws, F0=F0, ftau=ftau)
+    S = S_k @ gh_weights
 
     # Combined environment correction (full 8-term host expression)
     G = (gamma / 2.0     * L
@@ -1148,7 +1186,49 @@ def compute_mu_corr(data, params, model_cfg):
                + beta_gamma  * c_eff  * G       * f_beta
                - delta_bias)
 
-    return mu_corr
+    if not return_var:
+        return mu_corr
+
+    # ---- Var[mu_corr] from host-property measurement error ----------------
+    # G is multilinear in (L, H, S), whose measurement errors are mutually
+    # independent, so E[G^2] factorises into univariate moments and needs no
+    # K^3 tensor grid: for monomials M_k, M_l with exponent vectors
+    # (p,q,r) in {0,1},
+    #     E[M_k M_l] = E[L^(p_k+p_l)] E[H^(q_k+q_l)] E[S^(r_k+r_l)]
+    # and every required moment (order 0, 1 or 2) comes from the same 1-D
+    # quadrature already used above.  Var[G] = E[G^2] - E[G]^2 is therefore
+    # exact to the accuracy of the quadrature, with no linearisation.
+    one = np.ones_like(L)
+    mL = (one, L, L_k * L_k @ gh_weights)     # E[L^0], E[L^1], E[L^2]
+    mH = (one, H, H_k * H_k @ gh_weights)
+    mS = (one, S, S_k * S_k @ gh_weights)
+
+    #        coefficient      (p, q, r)  exponents of (L, H, S)
+    monomials = ((gamma / 2.0,  (1, 0, 0)),
+                 (eta,          (0, 1, 0)),
+                 (xi_mass_col,  (1, 1, 0)),
+                 (zeta,         (0, 0, 1)),
+                 (xi_sSFR_col,  (0, 1, 1)),
+                 (xi_sSFR_mass, (1, 0, 1)),
+                 (omega,        (1, 1, 1)))
+
+    EG2 = np.zeros_like(G)
+    for ck, (pk, qk, rk) in monomials:
+        if ck == 0.0:
+            continue
+        for cl, (pl, ql, rl) in monomials:
+            if cl == 0.0:
+                continue
+            EG2 = EG2 + (ck * cl) * mL[pk + pl] * mH[qk + ql] * mS[rk + rl]
+
+    var_G = np.maximum(EG2 - G * G, 0.0)      # clip quadrature round-off
+
+    # G enters mu_corr with this total multiplier, so Var[mu] = w^2 Var[G].
+    w = (f_gamma
+         + gamma_alpha * x1_eff * f_gamma
+         + beta_gamma  * c_eff  * f_beta)
+
+    return mu_corr, w * w * var_G
 
 # ===========================================================================
 # 4.  LIKELIHOOD  (analytic M-marginalisation via Betoule/March formula)
@@ -1192,6 +1272,61 @@ def cov_log_likelihood(mu_corr, mu_cosmo, inv_cov, log_det_const, C_sum):
     B         = float(np.sum(v))
     chi2_marg = chit2 - (B**2 / C_sum) + np.log(C_sum / (2.0 * np.pi))
     return -0.5 * (chi2_marg + log_det_const)
+
+def cov_log_likelihood_hetero(mu_corr, var_mu, mu_cosmo, cov_base, n_ln2pi):
+    """
+    As cov_log_likelihood, but with a parameter-dependent diagonal added to
+    the covariance, so the factorisation cannot be cached.
+
+    Used when host-property measurement error is propagated as a variance
+    (not just as a bias correction on the mean).  The extra per-SN variance
+    var_mu depends on the sampled parameters, so C = cov_base + diag(var_mu)
+    changes on every call and must be re-factorised.  That is O(N^3) per
+    likelihood evaluation, versus the O(N^2) matrix-vector product of the
+    cached-inverse path, so this is reserved for targeted systematic checks
+    rather than production sweeps.
+
+    A perturbative (Neumann series) update of the cached inverse was tested
+    and rejected: for realistic sSFR errors the correction diagonal reaches
+    ~25x the covariance diagonal, where the series diverges outright.
+
+    Parameters
+    ----------
+    mu_corr  : ndarray (N,)
+    var_mu   : ndarray (N,)  extra variance from host measurement error
+    mu_cosmo : ndarray (N,)
+    cov_base : ndarray (N,N) covariance INCLUDING muerr^2/sigma_int but
+                             EXCLUDING var_mu
+    n_ln2pi  : float         N * ln(2 pi), precomputed once
+
+    Returns
+    -------
+    float : log-likelihood
+    """
+    delta = mu_corr - mu_cosmo
+    if np.any(~np.isfinite(delta)) or np.any(~np.isfinite(var_mu)):
+        return -1e30
+
+    n = delta.shape[0]
+    C = cov_base.copy()
+    C.reshape(-1)[::n + 1] += var_mu          # in-place diagonal update
+    try:
+        chol = cho_factor(C, lower=True, overwrite_a=True)
+    except LinAlgError:
+        return -1e30
+
+    log_det = 2.0 * np.sum(np.log(np.diag(chol[0]))) + n_ln2pi
+    # Solve for delta and 1 in a single call (two right-hand sides).
+    rhs   = np.column_stack((delta, np.ones(n)))
+    sol   = cho_solve(chol, rhs)
+    chit2 = float(delta @ sol[:, 0])
+    B     = float(np.sum(sol[:, 0]))
+    C_sum = float(np.sum(sol[:, 1]))
+    if not np.isfinite(C_sum) or C_sum <= 0:
+        return -1e30
+
+    chi2_marg = chit2 - (B**2 / C_sum) + np.log(C_sum / (2.0 * np.pi))
+    return -0.5 * (chi2_marg + log_det)
 
 # ===========================================================================
 # 5.  PARAMETER HELPER
@@ -1308,12 +1443,21 @@ def _cosmo_kwargs(params, cosmo_type):
         raise ValueError(f"Unknown cosmo_type '{cosmo_type}'")
 
 def make_loglike(data, inv_cov_mat, log_det_const, C_sum,
-                 param_specs, active_names, model_cfg, cosmo_type):
+                 param_specs, active_names, model_cfg, cosmo_type,
+                 cov_base=None):
     """
     Return a dynesty-compatible loglike(theta) -> float closure.
     inv_cov_mat is the precomputed dense inverse (passed from run.py).
+
+    If cov_base is not None, the host-property measurement error is
+    propagated as a variance as well as a bias: the covariance becomes
+    cov_base + diag(Var[mu_corr]) and is re-factorised on every call.  This
+    is much slower (O(N^3) per likelihood) and is intended for systematic
+    checks; see cov_log_likelihood_hetero.
     """
     get_params = build_param_getter(param_specs, active_names)
+    hetero     = cov_base is not None
+    n_ln2pi    = len(data["z"]) * np.log(2.0 * np.pi) if hetero else 0.0
 
     def loglike(theta):
         params = get_params(theta)
@@ -1321,6 +1465,11 @@ def make_loglike(data, inv_cov_mat, log_det_const, C_sum,
             mu_cosmo = mu_theory(data["z"], **_cosmo_kwargs(params, cosmo_type))
         except Exception:
             return -1e30
+        if hetero:
+            mu_corr, var_mu = compute_mu_corr(data, params, model_cfg,
+                                              return_var=True)
+            return cov_log_likelihood_hetero(mu_corr, var_mu, mu_cosmo,
+                                             cov_base, n_ln2pi)
         mu_corr = compute_mu_corr(data, params, model_cfg)
         return cov_log_likelihood(mu_corr, mu_cosmo, inv_cov_mat, log_det_const, C_sum)
 
