@@ -59,7 +59,8 @@ Usage
   python prior_shrinkage.py run_publication_registry.csv
   python prior_shrinkage.py run_checks_registry.csv --flag-shrinkage 0.2
 
-or:
+or:592979
+
   from prior_shrinkage import scan_registry
   report = scan_registry("run_publication_registry.csv")
 """

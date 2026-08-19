@@ -21,72 +21,6 @@ How to use
   cfg["param_specs"]["a"]["active"] = True
   # then pass cfg to run_sampler(cfg)
 
-Changes from previous version
-------------------------------
-  - sn_tau added: scale parameter for the tanh and softbroken SN colour
-    models.  log_normal prior peaking around 0.3 mag (typical colour range)
-    with long right tail so the linear limit (large sn_tau) is always
-    accessible.
-
-  - tau / htau priors changed from log_uniform to log_normal.
-    Motivation: log_uniform gives equal weight per decade and does not
-    disfavour either very small or very large values within the range.
-    For tau and htau the physically motivated scale is ~0.2–0.5 dex
-    (a gradual but not negligible transition).  A log_normal prior
-    centred on log(0.3) ≈ -1.2 concentrates probability in that region
-    while still giving non-negligible weight to the extremes of the range,
-    avoiding artificial pressure toward either a hard step (tau → 0) or
-    complete smearing (tau → large).  The range [0.02, 5.0] remains as a
-    hard clip so the sampler never wastes time in the pathological tails.
-
-  - z_evolve "linear" model added to CONFIG model options (see core.py).
-    Simply a first-order Taylor expansion around z_pivot; the cleanest
-    parametrisation for detecting a slow linear trend.
-
-  - Z_PIVOT removed from CONFIG.  The pivot is now computed automatically
-    from the loaded dataset (median redshift) in run.py and written into
-    core.Z_PIVOT_RUNTIME.  Removing it from config prevents the common
-    mistake of forgetting to update it when switching datasets.
-
-  - x1_range / c_range added: optional [lo, hi] cuts on SALT2 stretch (x1)
-    and colour (c) applied after all other data filters.  The covariance
-    matrix is subsetted to exactly the surviving rows, so the full statistical
-    covariance is preserved.  Set to None (default) to apply no cut.
-
-  - x1_correction model added: a new model registry (X1_CORRECTION_MODELS)
-    in core.py mirrors the SN_COLOUR_MODELS pattern, allowing nonlinear
-    stretch corrections.  The centred-quadratic model is included as the
-    natural counterpart to sn_colour_quadratic; additional models test for
-    saturation and asymmetric response.  The associated parameters (x1_0,
-    x1_tau) follow the same prior conventions as their colour analogues.
-
-  - sSFR host term added: specific star formation rate (HOST_LOGsSFR) enters
-    the host environment correction as F (the sSFR profile function).  The
-    complete host term is:
-        G = gamma/2 * S + eta * H + xi_mass_col * S*H
-          + zeta * F + xi_sSFR_col * F*H + xi_sSFR_mass * F*S + omega * F*S*H
-    New parameters: zeta, xi_sSFR_col, xi_sSFR_mass, omega (arcsinh priors),
-    and the sSFR model shape parameters F0, ftau.  The sSFR column and
-    error column are configured via col_logsSFR / col_logsSFR_err in CONFIG.
-
-  - Host-property measurement-error marginalisation added.  Host mass,
-    host colour, and sSFR were previously fed into the mass/host_colour/ssfr
-    profile functions as bare point estimates, with zero measurement
-    uncertainty — only the SN-side MUERR ever entered the covariance.
-    Their point estimate is now replaced with its expectation under Gaussian
-    measurement error via fixed Gauss-Hermite quadrature nodes, computed
-    once at data-load time in run.py and consumed by core.compute_mu_corr.
-    This does NOT touch the covariance matrix (inv_cov_mat / C_sum / the
-    one-time Cholesky inversion are all unchanged), so it adds negligible
-    runtime cost and is exact for a Gaussian error model, unlike inflating
-    the diagonal with a fixed local-slope approximation.
-    New CONFIG keys: col_logM_err, col_host_colour_err (col_logsSFR_err
-    already existed but was previously unused), and n_gh_nodes.
-
-  - muerr_cut added: optional QC cut on each SN's diagonal covariance
-    entry (sqrt(diag(cov_mat) + muerr**2)). Off by default (None); set to
-    a float threshold (mag) to drop SNe at or above it. See
-    load_and_filter_data in run.py.
 """
 
 # ---------------------------------------------------------------------------
@@ -109,11 +43,11 @@ DEFAULT_PARAM_SPECS = {
 
     # ---- SALT2 nuisance ----
     "alpha": {"active": True,  "prior": "truncated_gaussian",
-              "range": [0.04, 0.26], "mu": 0.17, "sigma": 0.05,
+              "range": [0.04, 0.26], "mu": 0.17, "sigma": 0.06,
               "fixed": 0.17},
 
     "beta":  {"active": True,  "prior": "truncated_gaussian",
-              "range": [1.5, 6.5],  "mu": 3.12,  "sigma": 0.5,
+              "range": [1.5, 6.5], "mu": 3.12, "sigma": 0.75,
               "fixed": 3.12},
 
     "gamma": {"active": True,  "prior": "uniform",
@@ -176,28 +110,17 @@ DEFAULT_PARAM_SPECS = {
               "range": [-5.0, 5.0], "scale": 0.3,
               "fixed": 0.0},
 
-    # Mass-step location. Kept as an informative prior (unlike C0) -- M0~10
-    # has genuine external anchoring from the broader host-mass-step
-    # literature, not just an internal convention. prior_shrinkage.py does
-    # flag M0 as prior-dominated in 26/937 rows, but degeneracy_scan.py's
-    # prescan shows this is concentrated specifically in xi_mass_col-active
-    # ("*_inter_only_M0") combos (M0<->xi_mass_col correlation ~-0.97) --
-    # i.e. it's the interaction term trading off against M0, not a generic
-    # problem with this prior. See extra_runners.py's checks/uniformpriors_*
-    # block for a dedicated uniform-M0 robustness check on exactly those
-    # interaction-active combos, rather than changing the default here.
-    "M0":    {"active": False, "prior": "truncated_gaussian",
-              "range": [9.2, 11.2], "mu": 10.0, "sigma": 0.4,
+    "M0":    {"active": False, "prior": "uniform",
+              "range": [9.2, 11.2],
               "fixed": 10.0},
 
     # Width of the mass-step transition (tanh and sigmoid mass models).
     # Irrelevant for mass="step" (hard cutoff) or mass="none" — fix to default.
-    # Prior: log_normal peaking near 0.3 dex (mu_ln = log(0.3) ≈ -1.20,
-    # sigma_ln = 0.6), with hard clip [0.02, 5.0].
-    # This concentrates probability around 0.2–0.5 while keeping the tails
-    # accessible — see config.py docstring for full rationale.
-    "tau":   {"active": False, "prior": "log_normal",
-              "range": [0.02, 5.0], "mu": -1.20, "sigma": 0.60,
+    # Uniform prior over the hard-clip range [0.02, 5.0] — see the config.py
+    # docstring for why every tau/width parameter here is uniform, not
+    # log_normal.
+    "tau":   {"active": False, "prior": "uniform",
+              "range": [0.02, 5.0], 
               "fixed": 0.2},
 
     # SN colour offset / quadratic coefficient (linear, quadratic, broken models)
@@ -206,34 +129,22 @@ DEFAULT_PARAM_SPECS = {
               "fixed": 0.43},
 
     # SN colour tanh / softbroken transition width.
-    # log_normal prior peaking near 0.3 mag (mu_ln = log(0.3) ≈ -1.20,
-    # sigma_ln = 0.7).  Large sn_tau → linear limit, so the model can always
-    # recover linearity if the data provide no evidence for saturation.
-    "sn_tau": {"active": False, "prior": "log_normal",
-               "range": [0.02, 10.0], "mu": 0, "sigma": 0.50,
+    # Uniform prior over [0.02, 4.0] (tightened from 10.0 -- see config.py
+    # docstring "PRIOR RANGE: tau-family upper bounds" note below for why).
+    "sn_tau": {"active": False, "prior": "uniform",
+               "range": [0.02, 4.0],
                "fixed": 1.0},
 
-    # Host colour centre / threshold.
-    # Uniform over the existing hard range, not an informative gaussian.
-    # Unlike alpha/beta/Om0 (which have external literature/CMB anchors for
-    # their mu), there is no comparable physical prior on WHERE the host-
-    # colour threshold sits -- prior_shrinkage.py's scan of
-    # run_publication_registry.csv flagged C0 as prior-dominated
-    # (shrinkage < 0.2) in 50/937 scored (run, param) rows, the single
-    # largest flagged group, concentrated in host-colour x mass-colour
-    # interaction combos where degeneracy_scan.py's prescan also shows
-    # M0<->C0 / xi_mass_col<->C0 correlations >0.85 -- i.e. the previous
-    # truncated_gaussian(mu=0, sigma=1) was doing real work pulling the
-    # posterior toward 0 in exactly the runs where the data can least
-    # independently constrain it. Was: truncated_gaussian(mu=0.0, sigma=1).
+    # Host colour centre / threshold
     "C0":    {"active": False, "prior": "uniform",
-              "range": [-2, 3],
+              "range": [-3, 6],
               "fixed": 0.0},
 
-    # Width of the host-colour transition (sigmoid / tanh host_colour models).
-    # Same log_normal rationale as tau above.
-    "htau":  {"active": False, "prior": "log_normal",
-              "range": [0.02, 5.0], "mu": 0, "sigma": 0.60,
+    # Width of the host-colour transition (sigmoid / tanh / asymm
+    # host_colour models). Uniform prior over the hard-clip range, same as
+    # every other tau/width parameter in this file (see docstring).
+    "htau":  {"active": False, "prior": "uniform",
+              "range": [0.02, 5.0],
               "fixed": 1},
 
     # ---- double_step upper threshold ----
@@ -267,11 +178,11 @@ DEFAULT_PARAM_SPECS = {
               "fixed": 0.0},
 
     # x1_tau: transition width for nonlinear x1 models (tanh, softbroken,
-    #          stepbroken).  log_normal prior peaking near 0.5 (typical x1
-    #          scatter), with hard clip [0.05, 10.0].
+    #          stepbroken). Uniform prior over [0.05, 4.0] (tightened from
+    #          10.0 -- see "PRIOR RANGE: tau-family upper bounds" note below).
     #          Large x1_tau → linear limit (same as sn_tau for colour).
-    "x1_tau": {"active": False, "prior": "log_normal",
-               "range": [0.05, 10.0], "mu": -0.69, "sigma": 0.60,
+    "x1_tau": {"active": False, "prior": "uniform",
+               "range": [0.05, 4.0], 
                "fixed": 1.0},
 
     # =========================================================================
@@ -300,20 +211,20 @@ DEFAULT_PARAM_SPECS = {
 
     # omega:   sSFR × mass × host-colour three-way interaction.
     "omega":  {"active": False, "prior": "arcsinh",
-               "range": [-5.0, 5.0], "scale": 1.2,
+               "range": [-5.0, 5.0],
                "fixed": 0.0},
 
     # F0:  sSFR step / threshold location (log sSFR units).
     #      The fiducial split in the literature is near log(sSFR) ≈ -10.5
     #      (yr⁻¹); DES data may prefer a slightly different value.
-    "F0":    {"active": False, "prior": "truncated_gaussian",
-              "range": [-13.0, -8.0], "mu": -10.5, "sigma": 0.5,
-              "fixed": -10.5},
+    "F0":    {"active": False, "prior": "uniform",
+              "range": [-13.0, -8.0],
+              "fixed": -10},
 
     # ftau:  transition width for smooth sSFR models (tanh, sigmoid).
-    #        log_normal prior peaking near 0.5 dex; hard clip [0.05, 5.0].
-    "ftau":  {"active": False, "prior": "log_normal",
-              "range": [0.05, 5.0], "mu": -0.69, "sigma": 0.60,
+    #        Uniform prior over [0.05, 5.0].
+    "ftau":  {"active": False, "prior": "uniform",
+              "range": [0.05, 5.0],
               "fixed": 0.5},
 }
 
@@ -349,7 +260,7 @@ PARAM_DISPLAY = {
     "k3":          {"label": r"$k_3^{\rm spl}$",              "sigfigs": 3},
     # x1 correction
     "x1_0":        {"label": r"$x_{1,\,0}^{}$",                 "sigfigs": 3},
-    "x1_tau":      {"label": r"$\tau_{x_1}^{}$",              "sigfigs": 3},
+    "x1_tau":      {"label": r"$\tau_{x_1}^{}$",             "sigfigs": 3},
     # sSFR host term
     "zeta":         {"label": r"$\zeta$",                     "sigfigs": 3},
     "xi_sSFR_col":  {"label": r"$\xi_{S,C}^{}$",                  "sigfigs": 3},
@@ -363,45 +274,10 @@ PARAM_DISPLAY = {
 # 3.  RUN CONFIG  —  edit paths, models, and sampler settings here
 # ---------------------------------------------------------------------------
 
-import os as _os
-
-_REPO_DIR = _os.path.dirname(_os.path.abspath(__file__))
-
-# Absolute paths to the two data products on the analysis server. Kept
-# verbatim so a run there is byte-identical to the published runs.
-_SERVER_DIR = "/home/users/zgl12/DES_Param_Analysis"
-
-
-def _data_path(filename):
-    """Resolve a data file to wherever it actually exists.
-
-    Order: the server path first (so nothing changes on the machine the
-    published runs came from), then alongside this config file, then the
-    current working directory.
-
-    Without this, data_file/cov_file were hard-coded to _SERVER_DIR and
-    the pipeline could only ever run on that one machine -- which defeats
-    the point of shipping environment.yml. Both files are also committed
-    to the repository, so the second branch resolves for a fresh clone
-    with no configuration at all. If none of the candidates exist the
-    server path is returned unchanged, so the resulting error names the
-    path that was expected rather than failing somewhere less obvious.
-    """
-    candidates = (_os.path.join(_SERVER_DIR, filename),
-                  _os.path.join(_REPO_DIR,   filename),
-                  _os.path.abspath(filename))
-    for path in candidates:
-        if _os.path.isfile(path):
-            return path
-    return candidates[0]
-
-
 CONFIG = {
     # ---- File paths ----
-    # Resolved at import time — see _data_path above. Replace either with a
-    # literal path to point at a different dataset.
-    "data_file":  _data_path("DES-Dovekie_Metadata.csv"),
-    "cov_file":   _data_path("STAT+SYS.npz"),
+    "data_file":  "/home/users/zgl12/DES_Param_Analysis/DES-Dovekie_Metadata.csv",
+    "cov_file":   "/home/users/zgl12/DES_Param_Analysis/STAT+SYS.npz",
     "output_dir": "Plots",
 
     # ---- Column names in the CSV ----
@@ -457,63 +333,6 @@ CONFIG = {
     # product that dominates runtime.
     "n_gh_nodes": 40,
 
-    # ---- Derived host colour error ----
-    # HOST_COLOR_ERR exists in the DES metadata but is -999 for every SN, so
-    # without this the host colour would be the only host property treated as
-    # exactly measured while mass and sSFR are smoothed by their errors — an
-    # asymmetry that flatters the host colour models.
-    #
-    # HOST_COLOR and HOST_LOGMASS come from the same SED fit to the same host
-    # photometry, so their uncertainties are physically linked.  When the
-    # colour error column is unpopulated we therefore derive
-    #     sigma_colour = HOST_LOGMASS_ERR / host_colour_err_mass_slope
-    # with the slope taken from the mass-to-light/colour relation of
-    # Taylor et al. 2011 (log(M*/L_i) = 1.15 + 0.70 (g-i)  =>  slope 0.70).
-    # This gives a median ~0.037 mag against a host colour spread of ~0.50 mag.
-    #
-    # Sanity checks behind this choice: HOST_LOGMASS_ERR correlates with host
-    # apparent magnitude at +0.61 (fainter host -> larger error, the correct
-    # sign) and only weakly with MUERR (-0.25).  SN-side proxies were tested
-    # and rejected: mBERR correlates with MUERR at +0.55 (it is a *component*
-    # of MUERR, so it would couple the x- and y-errors by construction) and
-    # with host magnitude at -0.24, i.e. the wrong sign.
-    #
-    # This is a DERIVED error, never a measured one.  Vary the slope (the
-    # literature spans roughly 0.5-1.15) as a systematic; set
-    # host_colour_err_from_logmass=False to disable it entirely.  If the
-    # colour error column is ever properly populated, the real values win.
-    "host_colour_err_from_logmass": True,
-    "host_colour_err_mass_slope":   0.70,
-
-    # ---- sSFR error masking ----
-    # HOST_LOGsSFR_ERR is bimodal: a well-measured population, and a pileup of
-    # failure-mode values near 10 dex — far larger than the whole population
-    # spread (~2.4 dex), with a clean valley at 2-3 dex separating the two.
-    # SNe above this threshold have their sSFR point estimate set to NaN, so
-    # they contribute nothing to the sSFR profile.  They are deliberately NOT
-    # dropped from the sample: every model must be compared on the same
-    # objects or the evidences stop being comparable.  Set to None to disable.
-    "ssfr_err_max": 2.5,
-
-    # ---- Host measurement error as a variance (systematic check) ----
-    # The Gauss-Hermite quadrature above corrects the BIAS from evaluating a
-    # nonlinear profile at a noisy host property (it computes E[f]).  It does
-    # not account for the extra SCATTER that the same noise injects into
-    # mu_corr, which requires adding Var[f] to the covariance diagonal.
-    #
-    # That term is parameter dependent, so the covariance can no longer be
-    # factorised once and cached: it must be refactorised on every likelihood
-    # call, which is O(N^3) instead of O(N^2).  (A perturbative update of the
-    # cached inverse was tested and rejected — for realistic sSFR errors the
-    # correction reaches ~25x the covariance diagonal, where the series
-    # diverges.)  It is therefore OFF by default and enabled only for the
-    # matched-pair systematic check in extra_runners.py.
-    #
-    # The term is always a net penalty on lnZ: because chi2/dof is slightly
-    # below 1 for this sample, the log-determinant cost always outweighs the
-    # chi2 gain.  It cannot be used to flatter a fit.
-    "host_var_penalty": False,
-
     # ---- Data filters (applied before any analysis) ----
     # Redshift cuts: set either or both to restrict the redshift range.
     #   "zlo": 0.1   -> keep only SNe with z >= 0.1   (discard low-z)
@@ -566,17 +385,12 @@ CONFIG = {
     # HOST_DDLR >= 0 to exclude it; do not rely on host_ddlr_max alone,
     # since -9 <= any positive threshold. On the DES-Dovekie metadata
     # uploaded during development, real HOST_DDLR tops out around 3.9, so
-    # the old host_ddlr_max=4.0 was effectively a no-op threshold by itself —
-    # only the >= 0 sentinel exclusion did any work. host_ddlr_max is now
-    # 2.0, which is genuinely discriminating: DDLR is the SN-host separation
-    # in units of the host's directional light radius, so DDLR <= 2 is the
-    # standard "the SN sits inside the host's light profile" association
-    # criterion used in the DES host-matching literature, while DDLR ~ 4
-    # admits associations that are as likely to be chance projections.
-    # Raise it back toward 4.0 only if you deliberately want the strict cut
-    # to be sentinel-exclusion-only.
+    # host_ddlr_max=4.0 is effectively a no-op threshold by itself — the
+    # >= 0 sentinel exclusion is what actually does the work. Tighten
+    # host_ddlr_max below 3.9 if you want DDLR itself to be discriminating,
+    # rather than just excluding the "no host" sentinel.
     "host_quality_cut": "all",
-    "host_ddlr_max":       2.0,
+    "host_ddlr_max":       4.0,
     "host_confusion_max":  0.1,
 
     # Host redshift observation type: "all" / "spec" / "phot" — see
@@ -640,17 +454,6 @@ CONFIG = {
     "bound":   "multi",
     "sample":  "rslice",
     "verbose": True,
-
-    # Minimum seconds between dynesty progress lines.  Runs launched via
-    # experiment_runner.py have stdout redirected to logs/<tag>.log, and
-    # dynesty's default writer repaints its status line several times a
-    # second — harmless on a terminal, but in a file every repaint is a
-    # new line, so a long run produces a log that is hundreds of MB of
-    # progress noise with the actual output buried in it.
-    #   1800 → one heartbeat line every 30 minutes (default)
-    #   0    → dynesty's own continuous progress bar (interactive use)
-    # Set "verbose" to False to suppress progress output entirely.
-    "progress_interval": 1800,
     "sampler_mode": "dynamic",  # "dynamic" | "static"
 
     # ---- Run registry ----

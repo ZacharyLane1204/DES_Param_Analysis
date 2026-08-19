@@ -1091,7 +1091,7 @@ def compute_mu_corr(data, params, model_cfg, return_var=False):
     k3          = params.get("k3",     0.0)
     # x1 correction
     x1_0        = params.get("x1_0",   0.0)
-    x1_tau      = params.get("x1_tau", 1.0)
+    x1_tau      = params.get("x1tau", 1.0)
     # sSFR host term
     zeta        = params.get("zeta",         0.0)
     xi_sSFR_col  = params.get("xi_sSFR_col",  0.0)
