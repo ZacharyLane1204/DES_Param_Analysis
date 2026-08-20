@@ -72,6 +72,7 @@ except Exception:
 
 from config import CONFIG, DEFAULT_PARAM_SPECS
 from run    import run_sampler, pkl_path_for
+from experiment_naming import ExperimentRegistry
 
 # Post-processing checks (see --degeneracy-scan / --host-quality-check /
 # --loo-zbins / --drilling-cones below) — imported lazily-looking but at
@@ -86,42 +87,14 @@ import drilling_cones
 # ===========================================================================
 # HELPERS
 # ===========================================================================
-
-def _override(base_specs, **param_overrides):
-    """
-    Return a deep copy of base_specs with per-parameter overrides applied.
-
-    Each key in param_overrides is a parameter name; the value is a dict of
-    fields to update, e.g.:
-
-        _override(base, Om0={"active": False}, w={"active": True})
-
-    Only the listed fields are changed — all other fields for that parameter
-    are inherited from base_specs unchanged.
-    """
-    specs = copy.deepcopy(base_specs)
-    for name, updates in param_overrides.items():
-        specs[name].update(updates)
-    return specs
-
-
-def _build(tag, param_overrides=None, config_overrides=None):
-    """
-    Build a complete config dict for one experiment.
-
-    Parameters
-    ----------
-    tag              : str   — unique human-readable label (appended to run name)
-    param_overrides  : dict  — {param_name: {field: value, ...}, ...}
-    config_overrides : dict  — top-level CONFIG fields to override, e.g.
-                               {"sigma_int": 0.1, "nlive": 2000}
-    """
-    cfg = copy.deepcopy(CONFIG)
-    cfg["run_tag"]    = tag
-    cfg["param_specs"] = _override(DEFAULT_PARAM_SPECS, **(param_overrides or {}))
-    if config_overrides:
-        cfg.update(config_overrides)
-    return cfg
+# _override()/_build() now live in experiment_naming.py, shared with
+# experiment_runner.py and combo_ablation_checks.py, instead of being
+# copy-pasted per file (this copy and experiment_runner.py's were
+# previously byte-identical). See that module's docstring for the
+# duplicate-tag / duplicate-config / degenerate-parameter guards this
+# gives every runner automatically.
+_registry = ExperimentRegistry(CONFIG, DEFAULT_PARAM_SPECS)
+_build    = _registry.build
 
 # ===========================================================================
 # EXPERIMENT DEFINITIONS

@@ -217,12 +217,29 @@ if __name__ == "__main__":
             targets.update(targets_from_shrinkage(args.shrinkage_csv,
                                                   prefix="evolution/"))
         if "headline" in batches:
+            # NOTE (this pass): these four run_tags previously used a
+            # "sn_col_model/"/"stretch/" prefix convention that's
+            # documented in experiment_runner.py's header comment but was
+            # never actually applied to these three tags -- they're
+            # unprefixed in experiment_runner.py itself. Combined with
+            # isin()'s exact-match semantics in targets_from_shrinkage(),
+            # this batch matched ZERO rows every time it ran; `--refit
+            # headline` was silently a no-op. Fixed to the tags' actual
+            # spelling. The fourth (stretch) tag legitimately does carry a
+            # "stretch/" prefix in stretch_runners.py, but that file's
+            # version is "..._x10_x1tau" (underscore before x1tau) --
+            # experiment_runner.py separately has an UNPREFIXED
+            # "stretch_softbroken_x10x1tau" (no underscore) that is a
+            # different run. Picked the stretch_runners.py one since it's
+            # the only one that actually carries the "stretch/" prefix
+            # this list otherwise uses -- double check this is the run you
+            # meant before trusting the refit.
             targets.update(targets_from_shrinkage(
                 args.shrinkage_csv,
-                run_tags=["sn_col_model/sncolour_dust_c0sntau",
-                         "sn_col_model/sncolour_dust_sntau",
-                         "sn_col_model/sncolour_softbroken_c0_sntau",
-                         "stretch/stretch_softbroken_x10x1tau"]))
+                run_tags=["sncolour_dust_c0sntau",
+                         "sncolour_dust_sntau",
+                         "sncolour_softbroken_c0sntau",
+                         "stretch/stretch_softbroken_x10_x1tau"]))
         if "all_flagged" in batches:
             targets.update(targets_from_shrinkage(args.shrinkage_csv))
         run_targeted_uniform_refits(targets, tag_prefix=args.tag_prefix)

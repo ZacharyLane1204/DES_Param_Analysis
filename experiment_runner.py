@@ -75,9 +75,14 @@ except Exception:
 
 from config import CONFIG, DEFAULT_PARAM_SPECS
 from run import run_sampler
+from experiment_naming import ExperimentRegistry
 
 def _M(ssfr="none", mass=None, host_colour=None, sn_colour=None):
-    """Return a model dict with the given overrides on top of CONFIG['model']."""
+    """Return a model dict with the given overrides on top of CONFIG['model'].
+    (ssfr always defaults to "none" here, unlike mass/host_colour/sn_colour,
+    which fall back to CONFIG's own default when omitted -- this section
+    always states its sSFR choice explicitly, so that asymmetry is
+    intentional, not an oversight.)"""
     m = dict(CONFIG["model"])
     m["ssfr"] = ssfr
     if mass        is not None: m["mass"]        = mass
@@ -88,42 +93,18 @@ def _M(ssfr="none", mass=None, host_colour=None, sn_colour=None):
 # ===========================================================================
 # HELPERS
 # ===========================================================================
-
-def _override(base_specs, **param_overrides):
-    """
-    Return a deep copy of base_specs with per-parameter overrides applied.
-
-    Each key in param_overrides is a parameter name; the value is a dict of
-    fields to update, e.g.:
-
-        _override(base, Om0={"active": False}, w={"active": True})
-
-    Only the listed fields are changed — all other fields for that parameter
-    are inherited from base_specs unchanged.
-    """
-    specs = copy.deepcopy(base_specs)
-    for name, updates in param_overrides.items():
-        specs[name].update(updates)
-    return specs
-
-
-def _build(tag, param_overrides=None, config_overrides=None):
-    """
-    Build a complete config dict for one experiment.
-
-    Parameters
-    ----------
-    tag              : str   — unique human-readable label (appended to run name)
-    param_overrides  : dict  — {param_name: {field: value, ...}, ...}
-    config_overrides : dict  — top-level CONFIG fields to override, e.g.
-                               {"sigma_int": 0.1, "nlive": 2000}
-    """
-    cfg = copy.deepcopy(CONFIG)
-    cfg["run_tag"]    = tag
-    cfg["param_specs"] = _override(DEFAULT_PARAM_SPECS, **(param_overrides or {}))
-    if config_overrides:
-        cfg.update(config_overrides)
-    return cfg
+# _override()/_build() used to be defined locally here (and, near-
+# identically, in extra_runners.py and combo_ablation_checks.py). They now
+# live in experiment_naming.py so all three runners share one
+# implementation, and so the duplicate-tag / duplicate-config / degenerate-
+# parameter guards documented there apply everywhere automatically instead
+# of only wherever they happened to be written first. See that module's
+# docstring for the two naming rules it enforces (mass="none" => no
+# separate "nogamma" tag fragment needed; a model's own linear zero-point
+# parameter can't be activated alongside that model, since it's degenerate
+# with M).
+_registry = ExperimentRegistry(CONFIG, DEFAULT_PARAM_SPECS)
+_build    = _registry.build
 
 _REG = {"registry_file": "run_publication_registry.csv"}
 
@@ -567,9 +548,23 @@ EXPERIMENTS = [
                    param_overrides={"c0": {"active": False, "fixed": 1.0},
                                     "sn_tau": {"active": True}}),
             
+            # c0's prior here is config.py's DEFAULT_PARAM_SPECS default
+            # (uniform, range [-2, 3]) -- no inline override, per the
+            # project convention that param_specs come from config.py
+            # unless a run is one of the deliberate broad-uniform cosmo
+            # checks (see config.py's DEFAULT_PARAM_SPECS docstring and
+            # the evolution/ section's _ZEVO_BROAD_UNIFORM block). This
+            # used to redundantly set "prior": "uniform" inline, which
+            # changed nothing (that was already the default) and masked
+            # the fact that sn_colour_dust's own docstring recommends a
+            # tighter, dust-motivated prior (truncated_gaussian, mu=0,
+            # sigma=0.1, range=[-0.5,0.5]) that was never actually wired
+            # up anywhere. If that tighter prior is wanted, it belongs as
+            # a deliberate change to c0's entry in config.py, not as an
+            # inline override here -- see the accompanying audit notes.
             _build("sncolour_dust_c0sntau",
                    config_overrides={"model": {**CONFIG["model"], "sn_colour": "dust"}},
-                   param_overrides={"c0": {"active": True, "prior": "uniform"}, 
+                   param_overrides={"c0": {"active": True}, 
                                     "sn_tau": {"active": True}}),
             
             # SN Colour step broken            
@@ -689,42 +684,51 @@ EXPERIMENTS = [
                                     "M1": {"active": False, "fixed": 10.5}}),
             
             # Mass None (i.e. no mass step, but still host-colour dependence)
-            _build("nogamma_ssfr_none_hcol_linear_eta_mass_none", config_overrides={"model": {**CONFIG["model"], 
+            # These tags used to carry a "nogamma_" prefix in addition to
+            # "mass_none". That was redundant: mass="none" already means
+            # gamma cannot be constrained by the data (see core.mass_none
+            # and experiment_naming.py's module docstring), so _build()
+            # now fixes gamma off automatically for every mass="none"
+            # entry, and the tag no longer needs to spell that out
+            # separately. The explicit "gamma" override below is kept as
+            # a harmless, self-documenting no-op (it matches exactly what
+            # _build() would do anyway) rather than removed outright.
+            _build("ssfr_none_hcol_linear_eta_mass_none", config_overrides={"model": {**CONFIG["model"], 
                                                                                               "host_colour": "linear", 
                                                                                               "mass": "none"}}, 
                    param_overrides={"C0": {"active": False, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0}, 
                                     "gamma": {"active": False, "fixed": 0}}),
             
-            _build("nogamma_ssfr_none_hcol_quadratic_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
+            _build("ssfr_none_hcol_quadratic_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
                                                                                                  "host_colour": "quadratic", 
                                                                                                  "mass": "none"}}, 
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0}, 
                                     "gamma": {"active": False, "fixed": 0}}),
             
-            _build("nogamma_ssfr_none_hcol_sigmoid_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
+            _build("ssfr_none_hcol_sigmoid_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
                                                                                                "host_colour": "sigmoid", 
                                                                                                "mass": "none"}}, 
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0}, 
                                     "gamma": {"active": False, "fixed": 0}}),
             
-            _build("nogamma_ssfr_none_hcol_tanh_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
+            _build("ssfr_none_hcol_tanh_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
                                                                                             "host_colour": "tanh", 
                                                                                             "mass": "none"}}, 
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0}, 
                                     "gamma": {"active": False, "fixed": 0}}),
             
-            _build("nogamma_ssfr_none_hcol_broken_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
+            _build("ssfr_none_hcol_broken_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
                                                                                             "host_colour": "broken",
                                                                                             "mass": "none"}}, 
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0},
                                     "gamma": {"active": False, "fixed": 0}}),            
 
-            _build("nogamma_ssfr_none_hcol_asymm_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"], 
+            _build("ssfr_none_hcol_asymm_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"], 
                                                                                             "host_colour": "asymm", 
                                                                                             "mass": "none"}}, 
                    param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
@@ -783,7 +787,7 @@ EXPERIMENTS = [
                                     "eta": {"active": True, "fixed": 0},
                                     "htau": {"active": True, "fixed": 0.2}}),
             
-            _build("nogamma_ssfr_none_hcol_sigmoid_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"], 
+            _build("ssfr_none_hcol_sigmoid_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"], 
                                                                                                     "host_colour": "sigmoid",
                                                                                                     "mass": "none"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
@@ -791,7 +795,7 @@ EXPERIMENTS = [
                                     "htau": {"active": True, "fixed": 0.2}, 
                                     "gamma": {"active": False, "fixed": 0}}),
             
-            _build("nogamma_ssfr_none_hcol_tanh_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"], 
+            _build("ssfr_none_hcol_tanh_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"], 
                                                                                                  "host_colour": "tanh",
                                                                                                  "mass": "none"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
@@ -1904,26 +1908,26 @@ EXPERIMENTS = [
               #     a significant fraction of the information in S.
               # =========================================================================
 
-              _build("nogamma_ssfr_step_zeta_hcol_linear_mass_none",
+              _build("ssfr_step_zeta_hcol_linear_mass_none",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="none")},
                      param_overrides={"zeta":  {"active": True,  "fixed": 0.0},
                                           "F0":    {"active": False, "fixed": -10.5},
                                           "gamma": {"active": False, "fixed": 0.0}}),
 
-              _build("nogamma_ssfr_step_zetaF0_hcol_linear_mass_none",
+              _build("ssfr_step_zetaF0_hcol_linear_mass_none",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="none")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
                                           "gamma": {"active": False, "fixed": 0.0}}),
 
-              _build("nogamma_ssfr_tanh_zetaF0ftau_hcol_linear_mass_none",
+              _build("ssfr_tanh_zetaF0ftau_hcol_linear_mass_none",
                      config_overrides={**_REG, "model": _M(ssfr="tanh", mass="none")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
                                           "ftau":  {"active": True, "fixed": 0.5},
                                           "gamma": {"active": False, "fixed": 0.0}}),
 
-              _build("nogamma_ssfr_sigmoid_zetaF0ftau_hcol_linear_mass_none",
+              _build("ssfr_sigmoid_zetaF0ftau_hcol_linear_mass_none",
                      config_overrides={**_REG, "model": _M(ssfr="sigmoid", mass="none")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
@@ -1960,21 +1964,21 @@ EXPERIMENTS = [
               #     information.  Useful primarily for an evidence comparison.
               # =========================================================================
 
-              _build("nogamma_ssfr_step_zeta_hcol_none_mass_none",
+              _build("ssfr_step_zeta_hcol_none_mass_none",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="none", host_colour="none")},
                      param_overrides={"zeta":  {"active": True,  "fixed": 0.0},
                                           "F0":    {"active": False, "fixed": -10.5},
                                           "gamma": {"active": False, "fixed": 0.0},
                                           "eta":   {"active": False, "fixed": 0.0}}),
 
-              _build("nogamma_ssfr_step_zetaF0_hcol_none_mass_none",
+              _build("ssfr_step_zetaF0_hcol_none_mass_none",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="none", host_colour="none")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
                                           "gamma": {"active": False, "fixed": 0.0},
                                           "eta":   {"active": False, "fixed": 0.0}}),
 
-              _build("nogamma_ssfr_tanh_zetaF0ftau_hcol_none_mass_none",
+              _build("ssfr_tanh_zetaF0ftau_hcol_none_mass_none",
                      config_overrides={**_REG, "model": _M(ssfr="tanh", mass="none", host_colour="none")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
@@ -1983,59 +1987,36 @@ EXPERIMENTS = [
                                           "eta":   {"active": False, "fixed": 0.0}}),
 
               # =========================================================================
-              # 9.  SMOOTH F0 / SHAPE EXPLORATION
-              #     Dedicated group for probing the sSFR threshold location and
-              #     transition sharpness in a more systematic way, using the minimal
-              #     zeta-only model to keep the parameter count low.
+              # 9.  SMOOTH F0 / SHAPE EXPLORATION  -- REMOVED (this pass)
               # =========================================================================
-
-              # NOTE (dedup pass): this section originally contained three
-              # "broader/uniform prior" F0/ftau variants here, each already
-              # renamed once before to fix an earlier accidental tag
-              # collision with section 1's entries (see the old comments
-              # this replaces). They were removed in this pass as confirmed
-              # duplicates of section 1's entries for a second, different
-              # reason than the one the previous fix addressed: F0 and ftau
-              # already default to a uniform prior in DEFAULT_PARAM_SPECS
-              # (config.py), so explicitly setting prior="uniform" here
-              # changed nothing relative to section 1 -- these were still
-              # exact duplicates, just no longer sharing a literal tag
-              # string. If you want a genuinely different F0/ftau prior
-              # (e.g. deliberately narrower, or a different shape), build
-              # it against DEFAULT_PARAM_SPECS's *current* default rather
-              # than assuming it's still gaussian/log_normal -- that
-              # assumption is what broke this section twice.
-
-              # sSFR REPLACES BOTH MASS AND HOST COLOUR  (gamma=eta=0)
-              #     The extreme hypothesis: sSFR alone captures all host-environment
-              #     information.  Useful primarily for an evidence comparison.
-              # -----------------------------------------------------------------------
-
-
-
-              # -----------------------------------------------------------------------
-              # SMOOTH F0 / SHAPE EXPLORATION
-              #     Probes the sSFR threshold location and transition sharpness with
-              #     broadened priors, using the minimal zeta-only model to keep the
-              #     parameter count low.  (Consolidated from extra_sSFR_runners.py.)
-              # -----------------------------------------------------------------------
-              _build("ssfr_step_zetaF0_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="step")},
-                     param_overrides={"zeta": {"active": True, "fixed": 0.0},
-                                      "F0":   {"active": True}}),
-
-              _build("ssfr_tanh_zetaF0ftau_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="tanh")},
-                     param_overrides={"zeta": {"active": True, "fixed": 0.0},
-                                      "F0":   {"active": True, "fixed": -10.5},
-                                      "ftau": {"active": True}}),
-
-              _build("ssfr_sigmoid_zetaF0ftauaslognorm_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="sigmoid")},
-                     param_overrides={"zeta": {"active": True, "fixed": 0.0},
-                                      "F0":   {"active": True, "fixed": -10.5},
-                                      "ftau": {"active": True}}),
+              # This section's three entries were confirmed (by fingerprint,
+              # not just tag string -- see experiment_naming.py's
+              # _fingerprint()) to be exact duplicates of section 1's
+              # ssfr_step_zetaF0_hcol_linear_mass_step,
+              # ssfr_tanh_zetaF0ftau_hcol_linear_mass_step, and
+              # ssfr_sigmoid_zetaF0ftau_hcol_linear_mass_step respectively.
+              #
+              # History, so this doesn't happen a third time: this section
+              # was already renamed once before to fix an earlier literal
+              # tag collision with section 1. That fix changed the tag
+              # strings but not the underlying configs, so two of the three
+              # entries were STILL byte-identical to section 1 under new
+              # names (experiment_naming.ExperimentRegistry now catches
+              # this at import time instead of only at run time). The third
+              # ("...aslognorm...") went further and renamed itself to
+              # claim a different prior shape for ftau, but the override
+              # never actually set prior="log_normal" -- ftau already
+              # defaults to uniform in DEFAULT_PARAM_SPECS, so activating
+              # it here changed nothing relative to section 1's
+              # ssfr_sigmoid_zetaF0ftau_hcol_linear_mass_step. If a
+              # genuinely different F0/ftau prior is wanted (narrower,
+              # log-normal, whatever), give it a real prior override here
+              # (e.g. {"prior": "log_normal", "mu": ..., "sigma": ...}) so
+              # the tag's claim and its config actually match, and build it
+              # against DEFAULT_PARAM_SPECS's *current* default rather than
+              # assuming what shape that default is.
     ]
+
 
 # ===========================================================================
 # RUNNER

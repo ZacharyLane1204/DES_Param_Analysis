@@ -61,6 +61,7 @@ import pandas as pd
 
 from config import CONFIG, DEFAULT_PARAM_SPECS
 from run    import run_sampler, pkl_path_for
+from experiment_naming import ExperimentRegistry
 
 import degeneracy_scan
 import host_match_quality
@@ -130,17 +131,21 @@ def _merge_terms(term_names):
     return model_overrides, param_overrides
 
 
-def _build_combo_cfg(term_names, registry_file):
+def _build_combo_cfg(term_names, registry_file, registry):
+    """Build one combo's config through the shared ExperimentRegistry
+    (experiment_naming.py) instead of hand-assembling the cfg dict, so a
+    combo that (a) repeats an earlier combo's tag, (b) resolves to an
+    identical model+active-parameter fingerprint under a different tag, or
+    (c) activates mass="none" alongside gamma, or a linear model's own
+    degenerate zero-point parameter, is caught here too -- same guards as
+    experiment_runner.py and extra_runners.py, not just the conflicting-
+    override check _merge_terms() already does above."""
     model_overrides, param_overrides = _merge_terms(term_names)
-    cfg = copy.deepcopy(CONFIG)
-    cfg["run_tag"] = _combo_tag(term_names)
-    cfg["model"]   = {**CONFIG["model"], **model_overrides}
-    specs = copy.deepcopy(DEFAULT_PARAM_SPECS)
-    for name, updates in param_overrides.items():
-        specs[name].update(updates)
-    cfg["param_specs"]   = specs
-    cfg["registry_file"] = registry_file
-    return cfg
+    tag = _combo_tag(term_names)
+    return registry.build(tag,
+                          param_overrides=param_overrides,
+                          config_overrides={"model": {**CONFIG["model"], **model_overrides},
+                                            "registry_file": registry_file})
 
 
 def _broad_uniform_om0_overrides():
@@ -185,11 +190,19 @@ def run_combo_checks(combos=None, only=None, registry_file="run_combo_registry.c
         only = set(only)
         combos = [c for c in combos if "_".join(c) in only]
 
+    # Fresh registry per call (not module-level): run_combo_checks() is
+    # documented as callable more than once per process (see module
+    # docstring's interactive usage example), and the duplicate-tag /
+    # duplicate-fingerprint guards in ExperimentRegistry are meant to
+    # catch mistakes WITHIN one COMBOS list, not across separate,
+    # deliberate invocations.
+    registry = ExperimentRegistry(CONFIG, DEFAULT_PARAM_SPECS)
+
     rows = []
     for term_names in combos:
         tag = _combo_tag(term_names)
         print(f"\n{'='*60}\nCombo: {tag}  (terms: {term_names})\n{'='*60}")
-        cfg = _build_combo_cfg(term_names, registry_file)
+        cfg = _build_combo_cfg(term_names, registry_file, registry)
 
         # ---- 1. Fit the combo once ----
         results, sampler, active_names, data, run_name = run_sampler(cfg)

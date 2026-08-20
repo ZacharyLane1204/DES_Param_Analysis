@@ -116,11 +116,11 @@ DEFAULT_PARAM_SPECS = {
 
     # Width of the mass-step transition (tanh and sigmoid mass models).
     # Irrelevant for mass="step" (hard cutoff) or mass="none" — fix to default.
-    # Uniform prior over the hard-clip range [0.02, 5.0] — see the config.py
+    # Uniform prior over the hard-clip range [0.02, 4.0] — see the config.py
     # docstring for why every tau/width parameter here is uniform, not
     # log_normal.
     "tau":   {"active": False, "prior": "uniform",
-              "range": [0.02, 5.0], 
+              "range": [0.02, 4.0], 
               "fixed": 0.2},
 
     # SN colour offset / quadratic coefficient (linear, quadratic, broken models)
@@ -144,13 +144,13 @@ DEFAULT_PARAM_SPECS = {
     # host_colour models). Uniform prior over the hard-clip range, same as
     # every other tau/width parameter in this file (see docstring).
     "htau":  {"active": False, "prior": "uniform",
-              "range": [0.02, 5.0],
+              "range": [0.02, 4.0],
               "fixed": 1},
 
     # ---- double_step upper threshold ----
     # Only used by mass="double_step". Prior centred higher than M0.
-    "M1":    {"active": False, "prior": "truncated_gaussian",
-              "range": [9.5, 11.5], "mu": 10.5, "sigma": 0.5,
+    "M1":    {"active": False, "prior": "uniform",
+              "range": [9.5, 11.5],
               "fixed": 10.5},
 
     # ---- mass_spline knot coefficients ----
@@ -196,22 +196,22 @@ DEFAULT_PARAM_SPECS = {
     # zeta:    linear sSFR amplitude (main effect).
     #          arcsinh prior: fine resolution near zero, log-spaced at large |ζ|.
     "zeta":   {"active": False, "prior": "arcsinh",
-               "range": [-5.0, 5.0], "scale": 0.2,
+               "range": [-5.0, 5.0], "scale": 0.5,
                "fixed": 0.0},
 
     # xi_sSFR_col: sSFR × host-colour interaction.
     "xi_sSFR_col": {"active": False, "prior": "arcsinh",
-                    "range": [-5.0, 5.0], "scale": 0.3,
+                    "range": [-5.0, 5.0], "scale": 0.5,
                     "fixed": 0.0},
 
     # xi_sSFR_mass: sSFR × mass interaction.
     "xi_sSFR_mass": {"active": False, "prior": "arcsinh",
-                     "range": [-5.0, 5.0], "scale": 0.3,
+                     "range": [-5.0, 5.0], "scale": 0.5,
                      "fixed": 0.0},
 
     # omega:   sSFR × mass × host-colour three-way interaction.
     "omega":  {"active": False, "prior": "arcsinh",
-               "range": [-5.0, 5.0],
+               "range": [-5.0, 5.0], "scale": 0.5,
                "fixed": 0.0},
 
     # F0:  sSFR step / threshold location (log sSFR units).
@@ -222,9 +222,9 @@ DEFAULT_PARAM_SPECS = {
               "fixed": -10},
 
     # ftau:  transition width for smooth sSFR models (tanh, sigmoid).
-    #        Uniform prior over [0.05, 5.0].
+    #        Uniform prior over [0.05, 4.0].
     "ftau":  {"active": False, "prior": "uniform",
-              "range": [0.05, 5.0],
+              "range": [0.05, 4.0],
               "fixed": 0.5},
 }
 
@@ -390,7 +390,7 @@ CONFIG = {
     # host_ddlr_max below 3.9 if you want DDLR itself to be discriminating,
     # rather than just excluding the "no host" sentinel.
     "host_quality_cut": "all",
-    "host_ddlr_max":       4.0,
+    "host_ddlr_max":       2.0,
     "host_confusion_max":  0.1,
 
     # Host redshift observation type: "all" / "spec" / "phot" — see
