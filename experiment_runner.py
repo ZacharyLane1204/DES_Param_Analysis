@@ -23,8 +23,8 @@ Usage
   # Run a range of indices (useful for splitting across server jobs)
   python experiment_runner.py --index 0-9
   python experiment_runner.py --index 10-19
-  
-  nice -n 19 python experiment_runner.py --workers 80 --index 0-79 && nice -n 19 python experiment_runner.py --workers 80 --index 80-159 && 
+
+  nice -n 19 python experiment_runner.py --workers 80 --index 0-79 && nice -n 19 python experiment_runner.py --workers 80 --index 80-159 &&
   nice -n 19 python experiment_runner.py --workers 80 --index 160-239 && nice -n 19 python experiment_runner.py --workers 80 --index 240-266
 """
 
@@ -189,7 +189,7 @@ def _zevo(tag, z_evolve, *exponents, **param_overrides):
     for name, updates in param_overrides.items():
         overrides.setdefault(name, {}).update(updates)
     return _build(tag,
-                  config_overrides={"model": {**CONFIG["model"],
+                  config_overrides={"model": {**CONFIG["model"], "host_colour": "linear",
                                               "z_evolve": z_evolve}},
                   param_overrides=overrides)
 
@@ -200,30 +200,22 @@ def _zevo(tag, z_evolve, *exponents, **param_overrides):
 # Each entry is a call to _build().  Add / remove entries freely.
 # The tag becomes part of the run name and the registry CSV.
 #
-# Convention used here:
-#   cosmo/          — cosmological model variants (FlatLambdaCDM/wCDM/LambdaCDM,
-#                     free Om0, ...)
-#   nuisance/       — SALT2 nuisance parameter variants (alpha/beta on/off, ...)
-#   sn_col_model/   — SN colour correction functional-form variants
-#   host_col_model/ — host-colour correction functional-form variants
-#   mass/           — host-mass step functional form variants
-#   ssfr/           — host specific-star-formation-rate term variants
-#   evolution/      — redshift-evolution (z_evolve) variants
-#   stretch/        — SN stretch (x1) correction variants
-#   interaction/    — cross-term / interaction variants (gamma_alpha, xi_*, ...)
-#   baseline/       — the single reference/baseline model everything else compares to
+# Convention used here (see experiment_naming.CATEGORY_PREFIXES for the
+# authoritative, enforced list -- ExperimentRegistry.validate_category_prefixes()
+# raises if a tag's prefix isn't in that set):
+#   cosmo/       — cosmological model variants (FlatLambdaCDM/wCDM/LambdaCDM,
+#                  free Om0, ...)
+#   nuisance/    — SALT3 nuisance parameter variants (alpha/beta on/off, ...)
+#   sncolour/    — SN colour correction functional-form variants
+#   host_col/    — host-colour correction variants (ssfr="none", host_colour!="none")
+#   mass/        — host-mass step variants (ssfr="none", host_colour="none")
+#   ssfr/        — host specific-star-formation-rate term variants (ssfr!="none")
+#   evolution/   — redshift-evolution (z_evolve) variants
+#   stretch/     — SN stretch (x1) correction variants
+#   interaction/ — cross-term / interaction variants (gamma_alpha, xi_*, ...)
+#   baseline     — the single reference/baseline model everything else compares to
 #
-# "scatter/" (intrinsic-scatter sigma_int variants) is a reserved prefix with
-# no LIVE entries right now -- both its _build() calls below are commented
-# out. Uncomment them (or add new scatter/... entries) rather than inventing
-# a different prefix for the same category.
-#
-# This list is meant to track whatever prefixes are actually LIVE below —
-# if you add a new top-level category, add its prefix here too. Don't check
-# this by grepping the raw source for `_build("prefix/` — that matches
-# commented-out lines too (this list's own "scatter/: 2 entries" line was
-# wrong for exactly that reason until this pass). Check what's actually
-# live instead:
+# To check what's actually live:
 #   python -c "
 #   import sys, types
 #   sys.modules['run'] = types.ModuleType('run')
@@ -255,34 +247,44 @@ EXPERIMENTS = [
             # -----------------------------------------------------------------------
             # BASELINE
             # -----------------------------------------------------------------------
-            _build("baseline"),
+            _build("baseline",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
 
             # -----------------------------------------------------------------------
             # COSMOLOGY VARIANTS
             # -----------------------------------------------------------------------
 
-            _build("cosmoLambdaCDM", param_overrides={"Ode0": {"active": True, "fixed": 0.6824}}),
-            _build("cosmowCDM", param_overrides={"w": {"active": True, "fixed": -1.0}}),
-            _build("Om0asuniform", param_overrides={"Om0": {"active": True, "prior": "uniform", "range": [0.2, 0.6]}}),
-            
+            _build("cosmo/cosmoLambdaCDM", param_overrides={"Ode0": {"active": True, "fixed": 0.6824}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
+            _build("cosmo/cosmowCDM", param_overrides={"w": {"active": True, "fixed": -1.0}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
+            _build("cosmo/Om0asuniform", param_overrides={"Om0": {"active": True, "prior": "uniform", "range": [0.2, 0.6]}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
+
             # -----------------------------------------------------------------------
             # NUISANCE PARAMETER VARIANTS
             # -----------------------------------------------------------------------
 
-            _build("noalpha", param_overrides={"alpha": {"active": False, "fixed": 0.0}}),
+            _build("nuisance/noalpha", param_overrides={"alpha": {"active": False, "fixed": 0.0}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
 
-            _build("nobeta", param_overrides={"beta": {"active": False, "fixed": 0.0}}),
+            _build("nuisance/nobeta", param_overrides={"beta": {"active": False, "fixed": 0.0}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
 
-            _build("nogamma", param_overrides={"gamma": {"active": False, "fixed": 0.0}}),
+            _build("nuisance/nogamma", param_overrides={"gamma": {"active": False, "fixed": 0.0}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
 
-            _build("noalphabeta", param_overrides={"alpha": {"active": False, "fixed": 0.0},
-                                                              "beta":  {"active": False, "fixed": 0.0}}),
+            _build("nuisance/noalphabeta", param_overrides={"alpha": {"active": False, "fixed": 0.0},
+                                                              "beta":  {"active": False, "fixed": 0.0}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
 
-            _build("nobetagamma", param_overrides={"gamma": {"active": False, "fixed": 0.0},
-                                                              "beta":  {"active": False, "fixed": 0.0}}),
-            
-            _build("noalphagamma", param_overrides={"gamma": {"active": False, "fixed": 0.0},
-                                                               "alpha":  {"active": False, "fixed": 0.0}}),
+            _build("nuisance/nobetagamma", param_overrides={"gamma": {"active": False, "fixed": 0.0},
+                                                              "beta":  {"active": False, "fixed": 0.0}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
+
+            _build("nuisance/noalphagamma", param_overrides={"gamma": {"active": False, "fixed": 0.0},
+                                                               "alpha":  {"active": False, "fixed": 0.0}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
 
             # -----------------------------------------------------------------------
             # REDSHIFT EVOLUTION VARIANTS
@@ -311,50 +313,50 @@ EXPERIMENTS = [
             # priors.
             _zevo("evolution/baseline_broaduniform", "power"),
 
-            _zevo("zevolve_power_a", "power", "a"),
-            _zevo("zevolve_power_b", "power", "b"),
-            _zevo("zevolve_power_g", "power", "g"),
+            _zevo("evolution/zevolve_power_a", "power", "a"),
+            _zevo("evolution/zevolve_power_b", "power", "b"),
+            _zevo("evolution/zevolve_power_g", "power", "g"),
             _zevo("evolution/zevolve_power_ab", "power", "a", "b"),
-            _zevo("zevolve_power_bg", "power", "b", "g"),
-            _zevo("zevolve_power_abg", "power", "a", "b", "g"),
+            _zevo("evolution/zevolve_power_bg", "power", "b", "g"),
+            _zevo("evolution/zevolve_power_abg", "power", "a", "b", "g"),
 
-            _zevo("zevolve_log_a", "log", "a"),
-            _zevo("zevolve_log_b", "log", "b"),
-            _zevo("zevolve_log_g", "log", "g"),
-            _zevo("zevolve_log_ab", "log", "a", "b"),
-            _zevo("zevolve_log_bg", "log", "b", "g"),
-            _zevo("zevolve_log_abg", "log", "a", "b", "g"),
+            _zevo("evolution/zevolve_log_a", "log", "a"),
+            _zevo("evolution/zevolve_log_b", "log", "b"),
+            _zevo("evolution/zevolve_log_g", "log", "g"),
+            _zevo("evolution/zevolve_log_ab", "log", "a", "b"),
+            _zevo("evolution/zevolve_log_bg", "log", "b", "g"),
+            _zevo("evolution/zevolve_log_abg", "log", "a", "b", "g"),
 
-            _zevo("zevolve_zz_a", "zz", "a"),
-            _zevo("zevolve_zz_b", "zz", "b"),
-            _zevo("zevolve_zz_g", "zz", "g"),
-            _zevo("zevolve_zz_ab", "zz", "a", "b"),
-            _zevo("zevolve_zz_bg", "zz", "b", "g"),
-            _zevo("zevolve_zz_abg", "zz", "a", "b", "g"),
+            _zevo("evolution/zevolve_zz_a", "zz", "a"),
+            _zevo("evolution/zevolve_zz_b", "zz", "b"),
+            _zevo("evolution/zevolve_zz_g", "zz", "g"),
+            _zevo("evolution/zevolve_zz_ab", "zz", "a", "b"),
+            _zevo("evolution/zevolve_zz_bg", "zz", "b", "g"),
+            _zevo("evolution/zevolve_zz_abg", "zz", "a", "b", "g"),
 
             # ---- linear-in-z evolution (first-order Taylor around z_pivot) ----
-            _zevo("zevolve_linear_a", "linear", "a"),
-            _zevo("zevolve_linear_b", "linear", "b"),
-            _zevo("zevolve_linear_g", "linear", "g"),
-            _zevo("zevolve_linear_ab", "linear", "a", "b"),
-            _zevo("zevolve_linear_bg", "linear", "b", "g"),
-            _zevo("zevolve_linear_abg", "linear", "a", "b", "g"),
+            _zevo("evolution/zevolve_linear_a", "linear", "a"),
+            _zevo("evolution/zevolve_linear_b", "linear", "b"),
+            _zevo("evolution/zevolve_linear_g", "linear", "g"),
+            _zevo("evolution/zevolve_linear_ab", "linear", "a", "b"),
+            _zevo("evolution/zevolve_linear_bg", "linear", "b", "g"),
+            _zevo("evolution/zevolve_linear_abg", "linear", "a", "b", "g"),
 
             # ---- exp-in-z evolution ----
-            _zevo("zevolve_exp_a", "exp", "a"),
-            _zevo("zevolve_exp_b", "exp", "b"),
-            _zevo("zevolve_exp_g", "exp", "g"),
-            _zevo("zevolve_exp_ab", "exp", "a", "b"),
-            _zevo("zevolve_exp_bg", "exp", "b", "g"),
-            _zevo("zevolve_exp_abg", "exp", "a", "b", "g"),
+            _zevo("evolution/zevolve_exp_a", "exp", "a"),
+            _zevo("evolution/zevolve_exp_b", "exp", "b"),
+            _zevo("evolution/zevolve_exp_g", "exp", "g"),
+            _zevo("evolution/zevolve_exp_ab", "exp", "a", "b"),
+            _zevo("evolution/zevolve_exp_bg", "exp", "b", "g"),
+            _zevo("evolution/zevolve_exp_abg", "exp", "a", "b", "g"),
 
             # ---- step-in-z evolution ----
-            _zevo("zevolve_step_a", "step", "a"),
-            _zevo("zevolve_step_b", "step", "b"),
-            _zevo("zevolve_step_g", "step", "g"),
-            _zevo("zevolve_step_ab", "step", "a", "b"),
-            _zevo("zevolve_step_bg", "step", "b", "g"),
-            _zevo("zevolve_step_abg", "step", "a", "b", "g"),
+            _zevo("evolution/zevolve_step_a", "step", "a"),
+            _zevo("evolution/zevolve_step_b", "step", "b"),
+            _zevo("evolution/zevolve_step_g", "step", "g"),
+            _zevo("evolution/zevolve_step_ab", "step", "a", "b"),
+            _zevo("evolution/zevolve_step_bg", "step", "b", "g"),
+            _zevo("evolution/zevolve_step_abg", "step", "a", "b", "g"),
 
           # -----------------------------------------------------------------------
             # Stretch MODEL VARIANTS  (same parameters, different model function)
@@ -362,121 +364,121 @@ EXPERIMENTS = [
             # x1_tau is the transition width for tanh and softbroken models.
             # It has a log_normal prior peaking near 0.3 mag so the linear
             # limit (large x1_tau) is always reachable by the data.
-            
+
             # Stretch quadratic
-            _build("stretch_quadratic_x10",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "quadratic"}},
+            _build("stretch/stretch_quadratic_x10",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "quadratic"}},
                    param_overrides={"x1_0": {"active": True, "fixed": 0}}),
 
-            # Stretch tanh            
-            _build("stretch_tanh",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "tanh"}},
+            # Stretch tanh
+            _build("stretch/stretch_tanh",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "tanh"}},
                    param_overrides={"x1_0": {"active": False, "fixed": 0.0},}),
-            
-            _build("stretch_tanh_x10",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "tanh"}},
-                   param_overrides={"x1_0": {"active": True, "fixed": 0.0},}), 
-            
-            _build("stretch_tanh_x10x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "tanh"}},
+
+            _build("stretch/stretch_tanh_x10",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "tanh"}},
+                   param_overrides={"x1_0": {"active": True, "fixed": 0.0},}),
+
+            _build("stretch/stretch_tanh_x10x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "tanh"}},
                    param_overrides={"x1_0": {"active": True, "fixed": 0.0},
-                                    "x1_tau": {"active": True, "fixed": 0.3}}),      
-                         
-            # Stretch soft broken            
-            _build("stretch_softbroken",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "softbroken"}},
+                                    "x1_tau": {"active": True, "fixed": 0.3}}),
+
+            # Stretch soft broken
+            _build("stretch/stretch_softbroken",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "softbroken"}},
                    param_overrides={"x1_0": {"active": False, "fixed": 0.0},
                                     "x1_tau": {"active": False, "fixed": 0.3}}),
-            
-            _build("stretch_softbroken_x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "softbroken"}},
+
+            _build("stretch/stretch_softbroken_x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "softbroken"}},
                    param_overrides={"x1_0": {"active": False, "fixed": 0.0},
                                     "x1_tau": {"active": True, "fixed": 0.3}}),
-            
-            _build("stretch_softbroken_x10x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "softbroken"}},
+
+            _build("stretch/stretch_softbroken_x10x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "softbroken"}},
                    param_overrides={"x1_0": {"active": True, "fixed": 0.0},
-                                    "x1_tau": {"active": True, "fixed": 0.3}}),                 
-            
-            # Stretch step broken            
-            _build("stretch_stepbroken",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "stepbroken"}},
+                                    "x1_tau": {"active": True, "fixed": 0.3}}),
+
+            # Stretch step broken
+            _build("stretch/stretch_stepbroken",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "stepbroken"}},
                    param_overrides={"x1_0": {"active": False, "fixed": 0.0},
                                     "x1_tau": {"active": False, "fixed": 0.3}}),
-            
-            _build("stretch_stepbroken_x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "stepbroken"}},
+
+            _build("stretch/stretch_stepbroken_x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "stepbroken"}},
                    param_overrides={"x1_0": {"active": False, "fixed": 0.0},
                                     "x1_tau": {"active": True, "fixed": 0.3}}),
-            
-            _build("stretch_stepbroken_x10x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "stepbroken"}},
+
+            _build("stretch/stretch_stepbroken_x10x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "stepbroken"}},
                    param_overrides={"x1_0": {"active": True, "fixed": 0.0},
-                                    "x1_tau": {"active": True, "fixed": 0.3}}),      
+                                    "x1_tau": {"active": True, "fixed": 0.3}}),
 
-            # Stretch Asymmetric Weight            
-            _build("stretch_asymm_gauss_weight",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "asymm_gauss_weight"}},
+            # Stretch Asymmetric Weight
+            _build("stretch/stretch_asymm_gauss_weight",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "asymm_gauss_weight"}},
                    param_overrides={"x1_0": {"active": False},
                                     "x1_tau": {"active": False}}),
-            
-            _build("stretch_asymm_gauss_weight_x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "asymm_gauss_weight"}},
+
+            _build("stretch/stretch_asymm_gauss_weight_x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "asymm_gauss_weight"}},
                    param_overrides={"x1_0": {"active": False},
                                     "x1_tau": {"active": True}}),
-            
-            _build("stretch_asymm_gauss_weight_x10x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "asymm_gauss_weight"}},
-                   param_overrides={"x1_0": {"active": True},
-                                    "x1_tau": {"active": True}}),   
 
-            # Stretch Power-law         
-            _build("stretch_powerlaw",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "powerlaw"}},
+            _build("stretch/stretch_asymm_gauss_weight_x10x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "asymm_gauss_weight"}},
+                   param_overrides={"x1_0": {"active": True},
+                                    "x1_tau": {"active": True}}),
+
+            # Stretch Power-law
+            _build("stretch/stretch_powerlaw",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "powerlaw"}},
                    param_overrides={"x1_0": {"active": False},
                                     "x1_tau": {"active": False}}),
-            
-            _build("stretch_powerlaw_x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "powerlaw"}},
+
+            _build("stretch/stretch_powerlaw_x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "powerlaw"}},
                    param_overrides={"x1_0": {"active": False},
                                     "x1_tau": {"active": True}}),
-            
-            _build("stretch_powerlaw_x10x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "powerlaw"}},
-                   param_overrides={"x1_0": {"active": True},
-                                    "x1_tau": {"active": True}}),   
 
-            # Stretch Double-broken      
-            _build("stretch_doublebroken",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "doublebroken"}},
+            _build("stretch/stretch_powerlaw_x10x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "powerlaw"}},
+                   param_overrides={"x1_0": {"active": True},
+                                    "x1_tau": {"active": True}}),
+
+            # Stretch Double-broken
+            _build("stretch/stretch_doublebroken",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "doublebroken"}},
                    param_overrides={"x1_0": {"active": False},
                                     "x1_tau": {"active": False}}),
-            
-            _build("stretch_doublebroken_x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "doublebroken"}},
+
+            _build("stretch/stretch_doublebroken_x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "doublebroken"}},
                    param_overrides={"x1_0": {"active": False},
                                     "x1_tau": {"active": True}}),
-            
-            _build("stretch_doublebroken_x10x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "doublebroken"}},
-                   param_overrides={"x1_0": {"active": True},
-                                    "x1_tau": {"active": True}}),   
 
-            # Stretch Sigmoid      
-            _build("stretch_sigmoid",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "sigmoid"}},
+            _build("stretch/stretch_doublebroken_x10x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "doublebroken"}},
+                   param_overrides={"x1_0": {"active": True},
+                                    "x1_tau": {"active": True}}),
+
+            # Stretch Sigmoid
+            _build("stretch/stretch_sigmoid",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "sigmoid"}},
                    param_overrides={"x1_0": {"active": False},
                                     "x1_tau": {"active": False}}),
-            
-            _build("stretch_sigmoid_x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "sigmoid"}},
+
+            _build("stretch/stretch_sigmoid_x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "sigmoid"}},
                    param_overrides={"x1_0": {"active": False},
                                     "x1_tau": {"active": True}}),
-            
-            _build("stretch_sigmoid_x10x1tau",
-                   config_overrides={"model": {**CONFIG["model"], "x1_correction": "sigmoid"}},
+
+            _build("stretch/stretch_sigmoid_x10x1tau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "x1_correction": "sigmoid"}},
                    param_overrides={"x1_0": {"active": True},
-                                    "x1_tau": {"active": True}}), 
+                                    "x1_tau": {"active": True}}),
 
             # -----------------------------------------------------------------------
             # SN COLOUR MODEL VARIANTS  (same parameters, different model function)
@@ -484,70 +486,67 @@ EXPERIMENTS = [
             # sn_tau is the transition width for tanh and softbroken models.
             # It has a log_normal prior peaking near 0.3 mag so the linear
             # limit (large sn_tau) is always reachable by the data.
-            
+
             # SN Colour quadratic
-            _build("sncolour_quadratic_c0",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "quadratic"}},
+            _build("sncolour/sncolour_quadratic_c0",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "quadratic"}},
                    param_overrides={"c0": {"active": True, "fixed": 0}}),
 
-            # SN Colour tanh            
-            _build("sncolour_tanh",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "tanh"}},
+            # SN Colour tanh
+            _build("sncolour/sncolour_tanh",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "tanh"}},
                    param_overrides={"c0": {"active": False, "fixed": 0.0},}),
-            
-            _build("sncolour_tanh_c0",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "tanh"}},
-                   param_overrides={"c0": {"active": True, "fixed": 0.0},}), 
-            
-            _build("sncolour_tanh_c0sntau",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "tanh"}},
-                   param_overrides={"c0": {"active": True, "fixed": 0.0},
-                                    "sn_tau": {"active": True, "fixed": 0.3}}),      
-            
-            # SN Colour broken        
-            _build("sncolour_broken_c0",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "broken"}},
+
+            _build("sncolour/sncolour_tanh_c0",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "tanh"}},
                    param_overrides={"c0": {"active": True, "fixed": 0.0},}),
-                         
-            # SN Colour soft broken            
-            _build("sncolour_softbroken",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}},
+
+            _build("sncolour/sncolour_tanh_c0sntau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "tanh"}},
+                   param_overrides={"c0": {"active": True, "fixed": 0.0},
+                                    "sn_tau": {"active": True, "fixed": 0.3}}),
+
+            # SN Colour broken
+            _build("sncolour/sncolour_broken_c0",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "broken"}},
+                   param_overrides={"c0": {"active": True, "fixed": 0.0},}),
+
+            # SN Colour soft broken
+            _build("sncolour/sncolour_softbroken",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"}},
                    param_overrides={"c0": {"active": False, "fixed": 0.0},
                                     "sn_tau": {"active": False, "fixed": 0.3}}),
-            
-            _build("sncolour_softbroken_sntau",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}},
+
+            _build("sncolour/sncolour_softbroken_sntau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"}},
                    param_overrides={"c0": {"active": False, "fixed": 0.0},
                                     "sn_tau": {"active": True, "fixed": 0.3}}),
-            
-            _build("sncolour_softbroken_c0sntau",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}},
+
+            _build("sncolour/sncolour_softbroken_c0sntau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"}},
                    param_overrides={"c0": {"active": True, "fixed": 0.0},
-                                    "sn_tau": {"active": True, "fixed": 0.3}}),                 
-            
+                                    "sn_tau": {"active": True, "fixed": 0.3}}),
+
             # SN Colour dust
-            # c0 is the dust model's colour pivot. It is deliberately NOT
-            # fitted in the two entries below: c0 is fixed to 1.0 so the
-            # pivot is held at a single reference value and the dust model
-            # is tested purely through beta (and, for _sntau, the power-law
-            # exponent). This also removes what used to be a silent
-            # duplicate -- "sncolour_dust" and "sncolour_dust_c0" carried
-            # byte-identical overrides, so the two tags described the same
-            # fit. The "_c0"/"_c0sntau" entries further down are now the
-            # only ones that sample c0, which is what their names claim.
-            _build("sncolour_dust",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "dust"}},
+            # c0 is the dust model's colour pivot. "sncolour_dust_c0" (c0
+            # sampled alone, sn_tau fixed) has been dropped: with sn_tau
+            # fixed near the linear regime, c0 behaves like a location
+            # shift that's largely absorbed into M -- prior_shrinkage.py
+            # on the actual registry confirms beta comes back
+            # prior-dominated in the sn_tau-active dust variants (shrinkage
+            # 0.10-0.13), consistent with c0 not doing much useful work on
+            # its own here. "sncolour_dust_c0sntau" (c0 AND sn_tau both
+            # sampled, so the nonlinearity that makes c0 non-degenerate
+            # with M is actually active) is kept.
+            _build("sncolour/sncolour_dust",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "dust"}},
                    param_overrides={"c0": {"active": False, "fixed": 1.0}}),
 
-            _build("sncolour_dust_c0",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "dust"}},
-                   param_overrides={"c0": {"active": True}}),
-
-            _build("sncolour_dust_sntau",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "dust"}},
+            _build("sncolour/sncolour_dust_sntau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "dust"}},
                    param_overrides={"c0": {"active": False, "fixed": 1.0},
                                     "sn_tau": {"active": True}}),
-            
+
             # c0's prior here is config.py's DEFAULT_PARAM_SPECS default
             # (uniform, range [-2, 3]) -- no inline override, per the
             # project convention that param_specs come from config.py
@@ -562,127 +561,127 @@ EXPERIMENTS = [
             # up anywhere. If that tighter prior is wanted, it belongs as
             # a deliberate change to c0's entry in config.py, not as an
             # inline override here -- see the accompanying audit notes.
-            _build("sncolour_dust_c0sntau",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "dust"}},
-                   param_overrides={"c0": {"active": True}, 
+            _build("sncolour/sncolour_dust_c0sntau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "dust"}},
+                   param_overrides={"c0": {"active": True},
                                     "sn_tau": {"active": True}}),
-            
-            # SN Colour step broken            
-            _build("sncolour_stepbroken",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "stepbroken"}},
-                   param_overrides={"c0": {"active": False, "fixed": 0.0},
-                                    "sn_tau": {"active": False, "fixed": 0.3}}),
-            
-            _build("sncolour_stepbroken_sntau",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "stepbroken"}},
-                   param_overrides={"c0": {"active": False, "fixed": 0.0},
-                                    "sn_tau": {"active": True, "fixed": 0.3}}),
-            
-            _build("sncolour_stepbroken_c0sntau",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "stepbroken"}},
-                   param_overrides={"c0": {"active": True, "fixed": 0.0},
-                                    "sn_tau": {"active": True, "fixed": 0.3}}),    
 
-            # SN Colour gaussian weight            
-            _build("sncolour_asymm_gauss_weight",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "asymm_gauss_weight"}},
+            # SN Colour step broken
+            _build("sncolour/sncolour_stepbroken",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "stepbroken"}},
                    param_overrides={"c0": {"active": False, "fixed": 0.0},
                                     "sn_tau": {"active": False, "fixed": 0.3}}),
-            
-            _build("sncolour_asymm_gauss_weight_sntau",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "asymm_gauss_weight"}},
+
+            _build("sncolour/sncolour_stepbroken_sntau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "stepbroken"}},
                    param_overrides={"c0": {"active": False, "fixed": 0.0},
                                     "sn_tau": {"active": True, "fixed": 0.3}}),
-            
-            _build("sncolour_asymm_gauss_weight_c0sntau",
-                   config_overrides={"model": {**CONFIG["model"], "sn_colour": "asymm_gauss_weight"}},
+
+            _build("sncolour/sncolour_stepbroken_c0sntau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "stepbroken"}},
                    param_overrides={"c0": {"active": True, "fixed": 0.0},
-                                    "sn_tau": {"active": True, "fixed": 0.3}}),    
-            
+                                    "sn_tau": {"active": True, "fixed": 0.3}}),
+
+            # SN Colour gaussian weight
+            _build("sncolour/sncolour_asymm_gauss_weight",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "asymm_gauss_weight"}},
+                   param_overrides={"c0": {"active": False, "fixed": 0.0},
+                                    "sn_tau": {"active": False, "fixed": 0.3}}),
+
+            _build("sncolour/sncolour_asymm_gauss_weight_sntau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "asymm_gauss_weight"}},
+                   param_overrides={"c0": {"active": False, "fixed": 0.0},
+                                    "sn_tau": {"active": True, "fixed": 0.3}}),
+
+            _build("sncolour/sncolour_asymm_gauss_weight_c0sntau",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "asymm_gauss_weight"}},
+                   param_overrides={"c0": {"active": True, "fixed": 0.0},
+                                    "sn_tau": {"active": True, "fixed": 0.3}}),
+
             # -----------------------------------------------------------------------
             # HOST COLOUR MODEL VARIANTS  (same parameters, different model function)
             # -----------------------------------------------------------------------
-            
+
             # Mass Steps
-            _build("ssfr_none_hcol_linear_eta_mass_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                              "host_colour": "linear"}}, 
+            _build("host_col/ssfr_none_hcol_linear_eta_mass_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                              "host_colour": "linear"}},
                    param_overrides={"C0": {"active": False, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_quadratic_etaC0_mass_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                 "host_colour": "quadratic"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_sigmoid_etaC0_mass_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                               "host_colour": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_tanh_etaC0_mass_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                            "host_colour": "tanh"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_broken_etaC0_mass_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                            "host_colour": "broken"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}}),            
 
-            _build("ssfr_none_hcol_asymm_etaC0htau_mass_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                            "host_colour": "asymm"}}, 
+            _build("host_col/ssfr_none_hcol_quadratic_etaC0_mass_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                                 "host_colour": "quadratic"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "eta": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_sigmoid_etaC0_mass_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                               "host_colour": "sigmoid"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "eta": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_tanh_etaC0_mass_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                            "host_colour": "tanh"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "eta": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_broken_etaC0_mass_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                            "host_colour": "broken"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "eta": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_asymm_etaC0htau_mass_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                            "host_colour": "asymm"}},
                    param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0}}),
-            
+
             # Mass Steps
-            _build("ssfr_none_hcol_linear_eta_mass_double_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                              "host_colour": "linear", 
-                                                                                              "mass": "double_step"}}, 
+            _build("host_col/ssfr_none_hcol_linear_eta_mass_double_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                              "host_colour": "linear",
+                                                                                              "mass": "double_step"}},
                    param_overrides={"C0": {"active": False, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "M0": {"active": False, "fixed": 9.5}, 
+                                    "eta": {"active": True, "fixed": 0},
+                                    "M0": {"active": False, "fixed": 9.5},
                                     "M1": {"active": False, "fixed": 10.5}}),
-            
-            _build("ssfr_none_hcol_quadratic_etaC0_mass_double_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                 "host_colour": "quadratic", 
-                                                                                                 "mass": "double_step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "M0": {"active": False, "fixed": 9.5}, 
-                                    "M1": {"active": False, "fixed": 10.5}}),
-            
-            _build("ssfr_none_hcol_sigmoid_etaC0_mass_double_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                               "host_colour": "sigmoid", 
-                                                                                               "mass": "double_step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "M0": {"active": False, "fixed": 9.5}, 
-                                    "M1": {"active": False, "fixed": 10.5}}),
-            
-            _build("ssfr_none_hcol_tanh_etaC0_mass_double_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                              "host_colour": "tanh", 
-                                                                                              "mass": "double_step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "M0": {"active": False, "fixed": 9.5}, 
-                                    "M1": {"active": False, "fixed": 10.5}}),
-            
-            _build("ssfr_none_hcol_broken_etaC0_mass_double_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                            "host_colour": "broken", 
-                                                                                            "mass": "double_step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "M0": {"active": False, "fixed": 9.5}, 
-                                    "M1": {"active": False, "fixed": 10.5}}),            
 
-            _build("ssfr_none_hcol_asymm_etaC0htau_mass_double_step", config_overrides={"model": {**CONFIG["model"], 
-                                                                                            "host_colour": "asymm", 
-                                                                                            "mass": "double_step"}}, 
-                   param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "M0": {"active": False, "fixed": 9.5}, 
+            _build("host_col/ssfr_none_hcol_quadratic_etaC0_mass_double_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                                 "host_colour": "quadratic",
+                                                                                                 "mass": "double_step"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "M0": {"active": False, "fixed": 9.5},
                                     "M1": {"active": False, "fixed": 10.5}}),
-            
+
+            _build("host_col/ssfr_none_hcol_sigmoid_etaC0_mass_double_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                               "host_colour": "sigmoid",
+                                                                                               "mass": "double_step"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "M0": {"active": False, "fixed": 9.5},
+                                    "M1": {"active": False, "fixed": 10.5}}),
+
+            _build("host_col/ssfr_none_hcol_tanh_etaC0_mass_double_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                              "host_colour": "tanh",
+                                                                                              "mass": "double_step"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "M0": {"active": False, "fixed": 9.5},
+                                    "M1": {"active": False, "fixed": 10.5}}),
+
+            _build("host_col/ssfr_none_hcol_broken_etaC0_mass_double_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                            "host_colour": "broken",
+                                                                                            "mass": "double_step"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "M0": {"active": False, "fixed": 9.5},
+                                    "M1": {"active": False, "fixed": 10.5}}),
+
+            _build("host_col/ssfr_none_hcol_asymm_etaC0htau_mass_double_step", config_overrides={"model": {**CONFIG["model"],
+                                                                                            "host_colour": "asymm",
+                                                                                            "mass": "double_step"}},
+                   param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "M0": {"active": False, "fixed": 9.5},
+                                    "M1": {"active": False, "fixed": 10.5}}),
+
             # Mass None (i.e. no mass step, but still host-colour dependence)
             # These tags used to carry a "nogamma_" prefix in addition to
             # "mass_none". That was redundant: mass="none" already means
@@ -693,742 +692,448 @@ EXPERIMENTS = [
             # separately. The explicit "gamma" override below is kept as
             # a harmless, self-documenting no-op (it matches exactly what
             # _build() would do anyway) rather than removed outright.
-            _build("ssfr_none_hcol_linear_eta_mass_none", config_overrides={"model": {**CONFIG["model"], 
-                                                                                              "host_colour": "linear", 
-                                                                                              "mass": "none"}}, 
+            _build("host_col/ssfr_none_hcol_linear_eta_mass_none", config_overrides={"model": {**CONFIG["model"],
+                                                                                              "host_colour": "linear",
+                                                                                              "mass": "none"}},
                    param_overrides={"C0": {"active": False, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "gamma": {"active": False, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_quadratic_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                 "host_colour": "quadratic", 
-                                                                                                 "mass": "none"}}, 
+
+            _build("host_col/ssfr_none_hcol_quadratic_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"],
+                                                                                                 "host_colour": "quadratic",
+                                                                                                 "mass": "none"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "gamma": {"active": False, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_sigmoid_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
-                                                                                               "host_colour": "sigmoid", 
-                                                                                               "mass": "none"}}, 
+
+            _build("host_col/ssfr_none_hcol_sigmoid_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"],
+                                                                                               "host_colour": "sigmoid",
+                                                                                               "mass": "none"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "gamma": {"active": False, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_tanh_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
-                                                                                            "host_colour": "tanh", 
-                                                                                            "mass": "none"}}, 
+
+            _build("host_col/ssfr_none_hcol_tanh_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"],
+                                                                                            "host_colour": "tanh",
+                                                                                            "mass": "none"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "gamma": {"active": False, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_broken_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"], 
+
+            _build("host_col/ssfr_none_hcol_broken_etaC0_mass_none", config_overrides={"model": {**CONFIG["model"],
                                                                                             "host_colour": "broken",
-                                                                                            "mass": "none"}}, 
+                                                                                            "mass": "none"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0},
-                                    "gamma": {"active": False, "fixed": 0}}),            
+                                    "gamma": {"active": False, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_asymm_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"], 
-                                                                                            "host_colour": "asymm", 
-                                                                                            "mass": "none"}}, 
+            _build("host_col/ssfr_none_hcol_asymm_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"],
+                                                                                            "host_colour": "asymm",
+                                                                                            "mass": "none"}},
                    param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0},
-                                    "gamma": {"active": False, "fixed": 0}}),       
-            
-            # Mass Linear 
-            _build("ssfr_none_hcol_linear_eta_mass_linear", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                "host_colour": "linear", 
-                                                                                                "mass": "linear"}}, 
+                                    "gamma": {"active": False, "fixed": 0}}),
+
+            # Mass Linear
+            _build("host_col/ssfr_none_hcol_linear_eta_mass_linear", config_overrides={"model": {**CONFIG["model"],
+                                                                                                "host_colour": "linear",
+                                                                                                "mass": "linear"}},
                    param_overrides={"C0": {"active": False, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_quadratic_etaC0_mass_linear", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                   "host_colour": "quadratic", 
-                                                                                                   "mass": "linear"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_sigmoid_etaC0_mass_linear", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                 "host_colour": "sigmoid", 
-                                                                                                 "mass": "linear"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "eta": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_tanh_etaC0_mass_linear", config_overrides={"model": {**CONFIG["model"], 
-                                                                                              "host_colour": "tanh", 
-                                                                                              "mass": "linear"}}, 
+
+            _build("host_col/ssfr_none_hcol_quadratic_etaC0_mass_linear", config_overrides={"model": {**CONFIG["model"],
+                                                                                                   "host_colour": "quadratic",
+                                                                                                   "mass": "linear"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_broken_etaC0_mass_linear", config_overrides={"model": {**CONFIG["model"], 
-                                                                                              "host_colour": "broken", 
-                                                                                              "mass": "linear"}}, 
+            _build("host_col/ssfr_none_hcol_sigmoid_etaC0_mass_linear", config_overrides={"model": {**CONFIG["model"],
+                                                                                                 "host_colour": "sigmoid",
+                                                                                                 "mass": "linear"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_asymm_etaC0htau_mass_linear", config_overrides={"model": {**CONFIG["model"], 
-                                                                                              "host_colour": "asymm", 
-                                                                                              "mass": "linear"}}, 
+            _build("host_col/ssfr_none_hcol_tanh_etaC0_mass_linear", config_overrides={"model": {**CONFIG["model"],
+                                                                                              "host_colour": "tanh",
+                                                                                              "mass": "linear"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "eta": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_broken_etaC0_mass_linear", config_overrides={"model": {**CONFIG["model"],
+                                                                                              "host_colour": "broken",
+                                                                                              "mass": "linear"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "eta": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_asymm_etaC0htau_mass_linear", config_overrides={"model": {**CONFIG["model"],
+                                                                                              "host_colour": "asymm",
+                                                                                              "mass": "linear"}},
                    param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0}}),
-            
+
             # Mass Steps with non-fixed width (htau)
-            _build("ssfr_none_hcol_sigmoid_etaC0htau_mass_step", config_overrides={"model": {**CONFIG["model"], 
+            _build("host_col/ssfr_none_hcol_sigmoid_etaC0htau_mass_step", config_overrides={"model": {**CONFIG["model"],
                                                                                                     "host_colour": "sigmoid",
                                                                                                     "mass": "step"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0},
                                     "htau": {"active": True, "fixed": 0.2}}),
-            
-            _build("ssfr_none_hcol_tanh_etaC0htau_mass_step", config_overrides={"model": {**CONFIG["model"], 
+
+            _build("host_col/ssfr_none_hcol_tanh_etaC0htau_mass_step", config_overrides={"model": {**CONFIG["model"],
                                                                                                  "host_colour": "tanh",
                                                                                                  "mass": "step"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0},
                                     "htau": {"active": True, "fixed": 0.2}}),
-            
-            _build("ssfr_none_hcol_sigmoid_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"], 
+
+            _build("host_col/ssfr_none_hcol_sigmoid_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"],
                                                                                                     "host_colour": "sigmoid",
                                                                                                     "mass": "none"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0},
-                                    "htau": {"active": True, "fixed": 0.2}, 
+                                    "htau": {"active": True, "fixed": 0.2},
                                     "gamma": {"active": False, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_tanh_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"], 
+
+            _build("host_col/ssfr_none_hcol_tanh_etaC0htau_mass_none", config_overrides={"model": {**CONFIG["model"],
                                                                                                  "host_colour": "tanh",
                                                                                                  "mass": "none"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "eta": {"active": True, "fixed": 0},
-                                    "htau": {"active": True, "fixed": 0.2}, 
+                                    "htau": {"active": True, "fixed": 0.2},
                                     "gamma": {"active": False, "fixed": 0}}),
-            
-            
-            
+
+
+
             # Interaction terms mass linear
-            _build("ssfr_none_hcol_linear_eta_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                      "host_colour": "linear", 
-                                                                                                      "mass": "linear"}}, 
+            _build("host_col/ssfr_none_hcol_linear_eta_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                      "host_colour": "linear",
+                                                                                                      "mass": "linear"}},
                    param_overrides={"C0": {"active": False, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_quadratic_etaC0_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                         "host_colour": "quadratic", 
-                                                                                                         "mass": "linear"}}, 
+            _build("host_col/ssfr_none_hcol_quadratic_etaC0_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                         "host_colour": "quadratic",
+                                                                                                         "mass": "linear"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),
-            
-            
-            _build("ssfr_none_hcol_sigmoid_etaC0_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                      "host_colour": "sigmoid", 
-                                                                                                      "mass": "linear"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_tanh_etaC0_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                    "host_colour": "tanh", 
-                                                                                                    "mass": "linear"}}, 
+
+            _build("host_col/ssfr_none_hcol_sigmoid_etaC0_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                      "host_colour": "sigmoid",
+                                                                                                      "mass": "linear"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_broken_etaC0_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                    "host_colour": "broken", 
-                                                                                                    "mass": "linear"}}, 
+            _build("host_col/ssfr_none_hcol_tanh_etaC0_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                    "host_colour": "tanh",
+                                                                                                    "mass": "linear"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_asymm_etaC0htau_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                     "host_colour": "asymm", 
-                                                                                                     "mass": "linear"}}, 
+            _build("host_col/ssfr_none_hcol_broken_etaC0_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                    "host_colour": "broken",
+                                                                                                    "mass": "linear"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "M0": {"active": False, "fixed": 10.0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_asymm_etaC0htau_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                     "host_colour": "asymm",
+                                                                                                     "mass": "linear"}},
                    param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
-            
+
             # Interaction terms mass step
-            _build("ssfr_none_hcol_linear_eta_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                    "host_colour": "linear", 
-                                                                                                    "mass": "step"}}, 
+            _build("host_col/ssfr_none_hcol_linear_eta_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                    "host_colour": "linear",
+                                                                                                    "mass": "step"}},
                    param_overrides={"C0": {"active": False, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_quadratic_etaC0_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                       "host_colour": "quadratic", 
-                                                                                                       "mass": "step"}}, 
+            _build("host_col/ssfr_none_hcol_quadratic_etaC0_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                       "host_colour": "quadratic",
+                                                                                                       "mass": "step"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),
-            
-            
-            _build("ssfr_none_hcol_sigmoid_etaC0_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                     "host_colour": "sigmoid", 
-                                                                                                     "mass": "step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_tanh_etaC0_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                  "host_colour": "tanh", 
-                                                                                                  "mass": "step"}}, 
+
+            _build("host_col/ssfr_none_hcol_sigmoid_etaC0_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                     "host_colour": "sigmoid",
+                                                                                                     "mass": "step"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_broken_etaC0_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                     "host_colour": "broken", 
-                                                                                                     "mass": "step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_asymm_etaC0htau_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                  "host_colour": "asymm", 
-                                                                                                  "mass": "step"}}, 
+            _build("host_col/ssfr_none_hcol_tanh_etaC0_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                  "host_colour": "tanh",
+                                                                                                  "mass": "step"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "M0": {"active": False, "fixed": 10.0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_broken_etaC0_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                     "host_colour": "broken",
+                                                                                                     "mass": "step"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "M0": {"active": False, "fixed": 10.0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_asymm_etaC0htau_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                  "host_colour": "asymm",
+                                                                                                  "mass": "step"}},
                    param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),            
-            
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
+
             # Interaction terms mass sigmoid
-            _build("ssfr_none_hcol_linear_eta_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                       "host_colour": "linear", 
-                                                                                                       "mass": "sigmoid"}}, 
+            _build("host_col/ssfr_none_hcol_linear_eta_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                       "host_colour": "linear",
+                                                                                                       "mass": "sigmoid"}},
                    param_overrides={"C0": {"active": False, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_linear_eta_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                          "host_colour": "linear", 
-                                                                                                          "mass": "sigmoid"}}, 
+
+            _build("host_col/ssfr_none_hcol_linear_eta_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                          "host_colour": "linear",
+                                                                                                          "mass": "sigmoid"}},
                    param_overrides={"C0": {"active": False, "fixed": 0},
                                     "M0": {"active": True, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_quadratic_etaC0_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                          "host_colour": "quadratic", 
-                                                                                                          "mass": "sigmoid"}}, 
+            _build("host_col/ssfr_none_hcol_quadratic_etaC0_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                          "host_colour": "quadratic",
+                                                                                                          "mass": "sigmoid"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_quadratic_etaC0_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                             "host_colour": "quadratic", 
-                                                                                                             "mass": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_sigmoid_etaC0_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                        "host_colour": "sigmoid", 
-                                                                                                        "mass": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_sigmoid_etaC0_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                           "host_colour": "sigmoid", 
-                                                                                                           "mass": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_tanh_etaC0_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                     "host_colour": "tanh", 
-                                                                                                     "mass": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_tanh_etaC0_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                        "host_colour": "tanh", 
-                                                                                                        "mass": "sigmoid"}}, 
+            _build("host_col/ssfr_none_hcol_quadratic_etaC0_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                             "host_colour": "quadratic",
+                                                                                                             "mass": "sigmoid"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": True, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
                                     "xi_mass_col": {"active": True, "fixed": 0}}),
-            
-            _build("ssfr_none_hcol_sigmoid_etaC0_mass_sigmoid_tauxihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                            "host_colour": "sigmoid", 
-                                                                                                            "mass": "sigmoid"}}, 
+
+            _build("host_col/ssfr_none_hcol_sigmoid_etaC0_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                        "host_colour": "sigmoid",
+                                                                                                        "mass": "sigmoid"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_sigmoid_etaC0_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                           "host_colour": "sigmoid",
+                                                                                                           "mass": "sigmoid"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "M0": {"active": True, "fixed": 10.0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_tanh_etaC0_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                     "host_colour": "tanh",
+                                                                                                     "mass": "sigmoid"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "M0": {"active": False, "fixed": 10.0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_tanh_etaC0_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                        "host_colour": "tanh",
+                                                                                                        "mass": "sigmoid"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "M0": {"active": True, "fixed": 10.0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_sigmoid_etaC0_mass_sigmoid_tauxihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                            "host_colour": "sigmoid",
+                                                                                                            "mass": "sigmoid"}},
+                   param_overrides={"C0": {"active": True, "fixed": 0},
+                                    "M0": {"active": False, "fixed": 10.0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0},
                                     "tau": {"active": True, "fixed": 0.2}}),
 
-            _build("ssfr_none_hcol_tanh_etaC0_mass_sigmoid_tauxihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                         "host_colour": "tanh", 
-                                                                                                         "mass": "sigmoid"}}, 
+            _build("host_col/ssfr_none_hcol_tanh_etaC0_mass_sigmoid_tauxihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                         "host_colour": "tanh",
+                                                                                                         "mass": "sigmoid"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0},
                                     "tau": {"active": True, "fixed": 0.2}}),
-            
+
             # Interaction terms mass sigmoid with broken host colour law
-            _build("ssfr_none_hcol_broken_etaC0_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                         "host_colour": "broken", 
-                                                                                                         "mass": "sigmoid"}}, 
+            _build("host_col/ssfr_none_hcol_broken_etaC0_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                         "host_colour": "broken",
+                                                                                                         "mass": "sigmoid"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),                
-            
-            _build("ssfr_none_hcol_broken_etaC0_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                         "host_colour": "broken", 
-                                                                                                         "mass": "sigmoid"}}, 
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
+
+            _build("host_col/ssfr_none_hcol_broken_etaC0_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                         "host_colour": "broken",
+                                                                                                         "mass": "sigmoid"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": True, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),            
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_broken_etaC0_mass_sigmoid_tauxihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                         "host_colour": "broken", 
-                                                                                                         "mass": "sigmoid"}}, 
+            _build("host_col/ssfr_none_hcol_broken_etaC0_mass_sigmoid_tauxihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                         "host_colour": "broken",
+                                                                                                         "mass": "sigmoid"}},
                    param_overrides={"C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0},
                                     "tau": {"active": True, "fixed": 0.2}}),
-            
+
             # Interaction terms mass sigmoid with asymmetry in host colour (i.e. different slopes for red and blue hosts)
-            _build("ssfr_none_hcol_asymm_etaC0htau_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                         "host_colour": "asymm", 
-                                                                                                         "mass": "sigmoid"}}, 
+            _build("host_col/ssfr_none_hcol_asymm_etaC0htau_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                         "host_colour": "asymm",
+                                                                                                         "mass": "sigmoid"}},
                    param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),                
-            
-            _build("ssfr_none_hcol_asymm_etaC0htau_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                         "host_colour": "asymm", 
-                                                                                                         "mass": "sigmoid"}}, 
-                   param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}}),            
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            _build("ssfr_none_hcol_asymm_etaC0htau_mass_sigmoid_tauxihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                         "host_colour": "asymm", 
-                                                                                                         "mass": "sigmoid"}}, 
+            _build("host_col/ssfr_none_hcol_asymm_etaC0htau_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                         "host_colour": "asymm",
+                                                                                                         "mass": "sigmoid"}},
                    param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "eta": {"active": True, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": True, "fixed": 0.2}}),            
+                                    "M0": {"active": True, "fixed": 10.0},
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0}}),
 
-            
-            # Only interaction terms
-            _build("nogamma_ssfr_none_hcol_linear_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                           "host_colour": "linear", 
-                                                                                                           "mass": "linear"}}, 
-                   param_overrides={"C0": {"active": False, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_linear_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                         "host_colour": "linear", 
-                                                                                                         "mass": "step"}}, 
-                   param_overrides={"C0": {"active": False, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_linear_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                            "host_colour": "linear", 
-                                                                                                            "mass": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": False, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_linear_mass_tanh_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                         "host_colour": "linear", 
-                                                                                                         "mass": "tanh"}}, 
-                   param_overrides={"C0": {"active": False, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_quadratic_C0_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                              "host_colour": "quadratic", 
-                                                                                                              "mass": "linear"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_quadratic_C0_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                            "host_colour": "quadratic", 
-                                                                                                            "mass": "step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_quadratic_C0_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                               "host_colour": "quadratic", 
-                                                                                                               "mass": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_quadratic_C0_mass_tanh_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                            "host_colour": "quadratic", 
-                                                                                                            "mass": "tanh"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_sigmoid_C0_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                            "host_colour": "sigmoid", 
-                                                                                                            "mass": "linear"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_sigmoid_C0_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                          "host_colour": "sigmoid", 
-                                                                                                          "mass": "step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_sigmoid_C0_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                          "host_colour": "sigmoid", 
-                                                                                                          "mass": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_sigmoid_C0_mass_tanh_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                          "host_colour": "sigmoid", 
-                                                                                                          "mass": "tanh"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_quadratic_C0_mass_step_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                               "host_colour": "quadratic", 
-                                                                                                               "mass": "step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_quadratic_C0_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                                  "host_colour": "quadratic", 
-                                                                                                                  "mass": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_quadratic_C0_mass_tanh_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                               "host_colour": "quadratic", 
-                                                                                                               "mass": "tanh"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_sigmoid_C0_mass_step_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                             "host_colour": "sigmoid", 
-                                                                                                             "mass": "step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_sigmoid_C0_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                             "host_colour": "sigmoid", 
-                                                                                                             "mass": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_sigmoid_C0_mass_tanh_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                             "host_colour": "sigmoid", 
-                                                                                                             "mass": "tanh"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            # Asymmetric host colour law variants (i.e. different slopes for red and blue hosts) with only interaction terms
-            _build("nogamma_ssfr_none_hcol_asymm_C0htau_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                            "host_colour": "asymm", 
-                                                                                                            "mass": "linear"}}, 
+            _build("host_col/ssfr_none_hcol_asymm_etaC0htau_mass_sigmoid_tauxihcolmass", config_overrides={"model": {**CONFIG["model"],
+                                                                                                         "host_colour": "asymm",
+                                                                                                         "mass": "sigmoid"}},
                    param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
                                     "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_asymm_C0htau_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                          "host_colour": "asymm", 
-                                                                                                          "mass": "step"}}, 
-                   param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_asymm_C0htau_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                          "host_colour": "asymm", 
-                                                                                                          "mass": "sigmoid"}}, 
-                   param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_asymm_C0htau_mass_tanh_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                          "host_colour": "asymm", 
-                                                                                                          "mass": "tanh"}}, 
-                   param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),            
-            
-            _build("nogamma_ssfr_none_hcol_asymm_C0htau_mass_step_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                             "host_colour": "asymm", 
-                                                                                                             "mass": "step"}}, 
-                   param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_asymm_C0htau_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                             "host_colour": "asymm", 
-                                                                                                             "mass": "sigmoid"}}, 
-                   param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_asymm_C0htau_mass_tanh_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                             "host_colour": "asymm", 
-                                                                                                             "mass": "tanh"}}, 
-                   param_overrides={"htau": {"active": True, "fixed": 0.2}, "C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),            
-            
-            # Interaction terms host colour broken 
-            _build("nogamma_ssfr_none_hcol_broken_C0_mass_linear_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                            "host_colour": "broken", 
-                                                                                                            "mass": "linear"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_broken_C0_mass_step_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                          "host_colour": "broken", 
-                                                                                                          "mass": "step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_broken_C0_mass_sigmoid_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                          "host_colour": "broken", 
-                                                                                                          "mass": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_broken_C0_mass_tanh_xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                          "host_colour": "broken", 
-                                                                                                          "mass": "tanh"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": False, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),            
-            
-            _build("nogamma_ssfr_none_hcol_broken_C0_mass_step_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                             "host_colour": "broken", 
-                                                                                                             "mass": "step"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_broken_C0_mass_sigmoid_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                             "host_colour": "broken", 
-                                                                                                             "mass": "sigmoid"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),
-            
-            _build("nogamma_ssfr_none_hcol_broken_C0_mass_tanh_M0xihcolmass", config_overrides={"model": {**CONFIG["model"], 
-                                                                                                             "host_colour": "broken", 
-                                                                                                             "mass": "tanh"}}, 
-                   param_overrides={"C0": {"active": True, "fixed": 0},
-                                    "M0": {"active": True, "fixed": 10.0},
-                                    "gamma": {"active": False, "fixed": 0}, 
-                                    "eta": {"active": False, "fixed": 0}, 
-                                    "xi_mass_col": {"active": True, "fixed": 0}, 
-                                    "tau": {"active": False, "fixed": 0.2}}),                
-            
+                                    "eta": {"active": True, "fixed": 0},
+                                    "xi_mass_col": {"active": True, "fixed": 0},
+                                    "tau": {"active": True, "fixed": 0.2}}),
+
+
             # -----------------------------------------------------------------------
-            # INTRINSIC SCATTER VARIANTS
+            # REMOVED (this pass): "nogamma_..._xihcolmass" interaction-
+            # isolation block (~30 entries: hcol linear/quadratic/sigmoid/
+            # tanh/asymm/broken x mass linear/step/sigmoid/tanh [+M0
+            # variants]).
+            #
+            # These deliberately set gamma inactive while keeping mass as a
+            # real functional form and xi_mass_col active, to test "does
+            # mass affect brightness only through its interaction with host
+            # colour, with zero direct step". That is a legitimate, distinct
+            # question from the plain "no_gamma" nuisance-ablation entry
+            # above (line ~276) -- but it is exactly the thing "no_gamma"
+            # tags are no longer allowed to mean: every no_gamma-style run
+            # in this pipeline now means mass=None, full stop, per the
+            # ExperimentRegistry.NONE_MODEL_ORPHANED_PARAMS guard in
+            # experiment_naming.py.
+            #
+            # Forcing mass="none" here (as that convention now requires)
+            # also forces xi_mass_col inactive (mass="none" => the mass
+            # profile L=0 for every SN, so xi_mass_col*L*H=0 regardless of
+            # xi_mass_col's value -- ExperimentRegistry.build() raises if
+            # you try to keep it active anyway). With both gamma and
+            # xi_mass_col correctly off, every entry in this block collapses
+            # to a config already covered by the "Mass None" section above
+            # (line ~686: ssfr_none_hcol_<form>_eta_mass_none / ..._etaC0_
+            # mass_none), so keeping both would only fail the registry's
+            # duplicate-fingerprint guard.
+            #
+            # If you still want the *interaction-only* question answered
+            # (mass shape active, gamma off, xi_mass_col on) it needs its
+            # own honestly-named tag -- e.g. "interaction/gamma_off_hcol_
+            # <form>_mass_<form>" -- so it doesn't collide with the new
+            # no_gamma=mass_none convention. Not re-added here; ask if you
+            # want it back under that naming.
             # -----------------------------------------------------------------------
 
-            # _build("scatter/sigma05", config_overrides={"sigma_int": 0.05}),
-
-            # _build("scatter/sigma10", config_overrides={"sigma_int": 0.1}),
-            
             # -----------------------------------------------------------------------
             # MASS STEP VARIANTS
             # -----------------------------------------------------------------------
-            
+
+
             # Step masses
-            _build("ssfr_none_hcol_linear_mass_step_M0", config_overrides={"model": {**CONFIG["model"], "mass": "step"}}, 
+            _build("host_col/ssfr_none_hcol_linear_mass_step_M0", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "step"}},
                    param_overrides={"M0": {"active": True, "fixed": 10.0}}),
-            
+
             # Linear masses
-            _build("ssfr_none_hcol_linear_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear"}}, 
+            _build("host_col/ssfr_none_hcol_linear_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "linear"}},
                    param_overrides={"M0": {"active": False, "fixed": 10.0}}),
-            
+
             # Tanh masses
-            _build("ssfr_none_hcol_linear_mass_tanh_M0", config_overrides={"model": {**CONFIG["model"], "mass": "tanh"}}, 
+            _build("host_col/ssfr_none_hcol_linear_mass_tanh_M0", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "tanh"}},
                    param_overrides={"M0": {"active": True, "fixed": 10.0}}),
-            
-            _build("ssfr_none_hcol_linear_mass_tanh", config_overrides={"model": {**CONFIG["model"], "mass": "tanh"}}, 
+
+            _build("host_col/ssfr_none_hcol_linear_mass_tanh", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "tanh"}},
                    param_overrides={"M0": {"active": False, "fixed": 10.0}}),
-            
-            _build("ssfr_none_hcol_linear_mass_tanh_M0tau", config_overrides={"model": {**CONFIG["model"], "mass": "tanh"}},
+
+            _build("host_col/ssfr_none_hcol_linear_mass_tanh_M0tau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "tanh"}},
                    param_overrides={"M0": {"active": True, "fixed": 10.0},
                                     "tau":  {"active": True, "fixed": 0.2}}),
-            
+
             # Sigmoid masses
-            _build("ssfr_none_hcol_linear_mass_sigmoid_M0", config_overrides={"model": {**CONFIG["model"], "mass": "sigmoid"}}, 
+            _build("host_col/ssfr_none_hcol_linear_mass_sigmoid_M0", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "sigmoid"}},
                    param_overrides={"M0": {"active": True, "fixed": 10.0}}),
-            
-            _build("ssfr_none_hcol_linear_mass_sigmoid", config_overrides={"model": {**CONFIG["model"], "mass": "sigmoid"}}, 
+
+            _build("host_col/ssfr_none_hcol_linear_mass_sigmoid", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "sigmoid"}},
                    param_overrides={"M0": {"active": False, "fixed": 10.0}}),
-            
-            _build("ssfr_none_hcol_linear_mass_sigmoid_M0tau", config_overrides={"model": {**CONFIG["model"], "mass": "sigmoid"}},
+
+            _build("host_col/ssfr_none_hcol_linear_mass_sigmoid_M0tau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "sigmoid"}},
                    param_overrides={"M0": {"active": True, "fixed": 10.0},
                                     "tau":  {"active": True, "fixed": 0.2}}),
-            
+
             # Double Step masses
-            _build("ssfr_none_hcol_linear_mass_double_step", config_overrides={"model": {**CONFIG["model"], "mass": "double_step"}}, 
-                   param_overrides={"M0": {"active": False, "fixed": 9.5}, 
+            _build("host_col/ssfr_none_hcol_linear_mass_double_step", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "double_step"}},
+                   param_overrides={"M0": {"active": False, "fixed": 9.5},
                                     "M1": {"active": False, "fixed": 10.5}}),
-            
-            _build("ssfr_none_hcol_linear_mass_double_step_M0M1", config_overrides={"model": {**CONFIG["model"], "mass": "double_step"}}, 
+
+            _build("host_col/ssfr_none_hcol_linear_mass_double_step_M0M1", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "double_step"}},
                    param_overrides={"M0": {"active": True, "fixed": 9.5},
                                     "M1": {"active": True, "fixed": 10.5}}),
-            
+
             # Gaussian Weight masses
-            _build("ssfr_none_hcol_linear_mass_gaussian_weight_M0", config_overrides={"model": {**CONFIG["model"], "mass": "gaussian_weight"}}, 
+            _build("host_col/ssfr_none_hcol_linear_mass_gaussian_weight_M0", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "gaussian_weight"}},
                    param_overrides={"M0": {"active": True, "fixed": 10.0}}),
-            
-            _build("ssfr_none_hcol_linear_mass_gaussian_weight", config_overrides={"model": {**CONFIG["model"], "mass": "gaussian_weight"}}, 
+
+            _build("host_col/ssfr_none_hcol_linear_mass_gaussian_weight", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "gaussian_weight"}},
                    param_overrides={"M0": {"active": False, "fixed": 10.0}}),
-            
-            _build("ssfr_none_hcol_linear_mass_gaussian_weight_M0tau", config_overrides={"model": {**CONFIG["model"], "mass": "gaussian_weight"}},
+
+            _build("host_col/ssfr_none_hcol_linear_mass_gaussian_weight_M0tau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "gaussian_weight"}},
                    param_overrides={"M0": {"active": True, "fixed": 10.0},
                                     "tau":  {"active": True, "fixed": 0.2}}),
-            
+
             # Spline masses
-            _build("ssfr_none_hcol_linear_mass_spline_k1k2k3",
-                   config_overrides={"model": {**CONFIG["model"], "mass": "spline"}},
+            _build("host_col/ssfr_none_hcol_linear_mass_spline_k1k2k3",
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "spline"}},
                    param_overrides={"k1": {"active": True, "prior": "arcsinh",
                                            "range": [-3.0, 3.0], "scale": 0.5, "fixed": 0.0},
                                     "k2": {"active": True, "prior": "arcsinh",
@@ -1440,19 +1145,23 @@ EXPERIMENTS = [
             # INTERACTION TERM VARIANTS
             # -----------------------------------------------------------------------
 
-            _build("interaction_betaalpha", param_overrides={"beta_alpha": {"active": True, "fixed": None}}),
+            _build("interaction/interaction_betaalpha", param_overrides={"beta_alpha": {"active": True, "fixed": None}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
 
-            _build("interaction_gammaalpha", param_overrides={"gamma_alpha": {"active": True, "fixed": None}}),
+            _build("interaction/interaction_gammaalpha", param_overrides={"gamma_alpha": {"active": True, "fixed": None}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
 
-            _build("interaction_betagamma", param_overrides={"beta_gamma": {"active": True, "fixed": None}}),
+            _build("interaction/interaction_betagamma", param_overrides={"beta_gamma": {"active": True, "fixed": None}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
 
-            _build("interaction_betaalphagammaalphabetagamma", 
+            _build("interaction/interaction_betaalphagammaalphabetagamma",
                    param_overrides={"beta_alpha": {"active": True, "fixed": None},
                                     "gamma_alpha": {"active": True, "fixed": None},
-                                    "beta_gamma": {"active": True, "fixed": None}}),
-            
-            
-       
+                                    "beta_gamma": {"active": True, "fixed": None}},
+                   config_overrides={"model": {**CONFIG["model"], "host_colour": "linear"}}),
+
+
+
               # =========================================================================
               # 1.  sSFR ALONE
               #     Test whether sSFR has any main effect in isolation, before coupling
@@ -1472,72 +1181,72 @@ EXPERIMENTS = [
               # =========================================================================
 
               # -- step (1 new param: zeta) --
-              _build("ssfr_step_zeta_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="step")},
+              _build("ssfr/ssfr_step_zeta_hcol_linear_mass_step",
+                     config_overrides={**_REG, "model": _M(ssfr="step", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5}}),
 
-              _build("ssfr_step_zetaF0_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="step")},
+              _build("ssfr/ssfr_step_zetaF0_hcol_linear_mass_step",
+                     config_overrides={**_REG, "model": _M(ssfr="step", host_colour="linear")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5}}),
 
               # -- tanh (1 new param: zeta; F0 fixed, ftau fixed) --
-              _build("ssfr_tanh_zeta_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="tanh")},
+              _build("ssfr/ssfr_tanh_zeta_hcol_linear_mass_step",
+                     config_overrides={**_REG, "model": _M(ssfr="tanh", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
                                           "ftau": {"active": False, "fixed": 0.5}}),
 
               # -- tanh with F0 free (2 new params: zeta, F0) --
-              _build("ssfr_tanh_zetaF0_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="tanh")},
+              _build("ssfr/ssfr_tanh_zetaF0_hcol_linear_mass_step",
+                     config_overrides={**_REG, "model": _M(ssfr="tanh", host_colour="linear")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5},
                                           "ftau": {"active": False, "fixed": 0.5}}),
 
               # -- tanh with ftau free (2 new params: zeta, ftau) --
-              _build("ssfr_tanh_zetaftau_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="tanh")},
+              _build("ssfr/ssfr_tanh_zetaftau_hcol_linear_mass_step",
+                     config_overrides={**_REG, "model": _M(ssfr="tanh", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
                                           "ftau": {"active": True,  "fixed": 0.5}}),
 
               # -- tanh fully free (3 new params: zeta, F0, ftau) --
-              _build("ssfr_tanh_zetaF0ftau_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="tanh")},
+              _build("ssfr/ssfr_tanh_zetaF0ftau_hcol_linear_mass_step",
+                     config_overrides={**_REG, "model": _M(ssfr="tanh", host_colour="linear")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5},
                                           "ftau": {"active": True, "fixed": 0.5}}),
 
               # -- sigmoid (parallel set to tanh) --
-              _build("ssfr_sigmoid_zeta_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="sigmoid")},
+              _build("ssfr/ssfr_sigmoid_zeta_hcol_linear_mass_step",
+                     config_overrides={**_REG, "model": _M(ssfr="sigmoid", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
                                           "ftau": {"active": False, "fixed": 0.5}}),
 
-              _build("ssfr_sigmoid_zetaF0_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="sigmoid")},
+              _build("ssfr/ssfr_sigmoid_zetaF0_hcol_linear_mass_step",
+                     config_overrides={**_REG, "model": _M(ssfr="sigmoid", host_colour="linear")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5},
                                           "ftau": {"active": False, "fixed": 0.5}}),
 
-              _build("ssfr_sigmoid_zetaftau_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="sigmoid")},
+              _build("ssfr/ssfr_sigmoid_zetaftau_hcol_linear_mass_step",
+                     config_overrides={**_REG, "model": _M(ssfr="sigmoid", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
                                           "ftau": {"active": True,  "fixed": 0.5}}),
 
-              _build("ssfr_sigmoid_zetaF0ftau_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="sigmoid")},
+              _build("ssfr/ssfr_sigmoid_zetaF0ftau_hcol_linear_mass_step",
+                     config_overrides={**_REG, "model": _M(ssfr="sigmoid", host_colour="linear")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5},
                                           "ftau": {"active": True, "fixed": 0.5}}),
 
               # -- linear (F0 fixed — degenerate with M if free) --
-              _build("ssfr_linear_zeta_hcol_linear_mass_step",
-                     config_overrides={**_REG, "model": _M(ssfr="linear")},
+              _build("ssfr/ssfr_linear_zeta_hcol_linear_mass_step",
+                     config_overrides={**_REG, "model": _M(ssfr="linear", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0}}),
 
               # =========================================================================
@@ -1552,22 +1261,22 @@ EXPERIMENTS = [
 
               # -- sSFR step alongside mass step (zeta only) --
 
-              _build("ssfr_step_zetaF0_hcol_linear_mass_step_M0",
-                     config_overrides={**_REG, "model": _M(ssfr="step", mass="step")},
+              _build("ssfr/ssfr_step_zetaF0_hcol_linear_mass_step_M0",
+                     config_overrides={**_REG, "model": _M(ssfr="step", mass="step", host_colour="linear")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5},
                                           "M0":   {"active": True, "fixed": 10.0}}),
 
               # -- sSFR step + F*S interaction (zeta + theta) --
-              _build("ssfr_step_zeta_hcol_linear_mass_step_xisSFRmass",
-                     config_overrides={**_REG, "model": _M(ssfr="step", mass="step")},
+              _build("ssfr/ssfr_step_zeta_hcol_linear_mass_step_xisSFRmass",
+                     config_overrides={**_REG, "model": _M(ssfr="step", mass="step", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_mass": {"active": True,  "fixed": 0.0},
                                           "F0":    {"active": False, "fixed": -10.5},
                                           "M0":    {"active": False, "fixed": 10.0}}),
 
-              _build("ssfr_step_zetaF0_hcol_linear_mass_step_M0xisSFRmass",
-                     config_overrides={**_REG, "model": _M(ssfr="step", mass="step")},
+              _build("ssfr/ssfr_step_zetaF0_hcol_linear_mass_step_M0xisSFRmass",
+                     config_overrides={**_REG, "model": _M(ssfr="step", mass="step", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "xi_sSFR_mass": {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
@@ -1577,16 +1286,16 @@ EXPERIMENTS = [
 
 
               # -- sSFR tanh + F*S interaction --
-              _build("ssfr_tanh_zeta_hcol_linear_mass_step_xisSFRmass",
-                     config_overrides={**_REG, "model": _M(ssfr="tanh", mass="step")},
+              _build("ssfr/ssfr_tanh_zeta_hcol_linear_mass_step_xisSFRmass",
+                     config_overrides={**_REG, "model": _M(ssfr="tanh", mass="step", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_mass": {"active": True,  "fixed": 0.0},
                                           "F0":    {"active": False, "fixed": -10.5},
                                           "ftau":  {"active": False, "fixed": 0.5},
                                           "M0":    {"active": False, "fixed": 10.0}}),
 
-              _build("ssfr_tanh_zetaF0ftau_hcol_linear_mass_step_xisSFRmass",
-                     config_overrides={**_REG, "model": _M(ssfr="tanh", mass="step")},
+              _build("ssfr/ssfr_tanh_zetaF0ftau_hcol_linear_mass_step_xisSFRmass",
+                     config_overrides={**_REG, "model": _M(ssfr="tanh", mass="step", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "xi_sSFR_mass": {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
@@ -1594,33 +1303,33 @@ EXPERIMENTS = [
                                           "M0":    {"active": False, "fixed": 10.0}}),
 
               # -- sSFR alongside mass sigmoid (smooth mass transition) --
-              _build("ssfr_step_zeta_hcol_linear_mass_sigmoid",
-                     config_overrides={**_REG, "model": _M(ssfr="step", mass="sigmoid")},
+              _build("ssfr/ssfr_step_zeta_hcol_linear_mass_sigmoid",
+                     config_overrides={**_REG, "model": _M(ssfr="step", mass="sigmoid", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
                                           "M0":   {"active": False, "fixed": 10.0}}),
 
-              _build("ssfr_step_zetaF0_hcol_linear_mass_sigmoid_M0",
-                     config_overrides={**_REG, "model": _M(ssfr="step", mass="sigmoid")},
+              _build("ssfr/ssfr_step_zetaF0_hcol_linear_mass_sigmoid_M0",
+                     config_overrides={**_REG, "model": _M(ssfr="step", mass="sigmoid", host_colour="linear")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5},
                                           "M0":   {"active": True, "fixed": 10.0}}),
 
-              _build("ssfr_step_zeta_hcol_linear_mass_sigmoid_xisSFRmass",
-                     config_overrides={**_REG, "model": _M(ssfr="step", mass="sigmoid")},
+              _build("ssfr/ssfr_step_zeta_hcol_linear_mass_sigmoid_xisSFRmass",
+                     config_overrides={**_REG, "model": _M(ssfr="step", mass="sigmoid", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_mass": {"active": True,  "fixed": 0.0},
                                           "F0":    {"active": False, "fixed": -10.5},
                                           "M0":    {"active": False, "fixed": 10.0}}),
 
               # -- sSFR alongside mass linear --
-              _build("ssfr_step_zeta_hcol_linear_mass_linear",
-                     config_overrides={**_REG, "model": _M(ssfr="step", mass="linear")},
+              _build("ssfr/ssfr_step_zeta_hcol_linear_mass_linear",
+                     config_overrides={**_REG, "model": _M(ssfr="step", mass="linear", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5}}),
 
-              _build("ssfr_step_zeta_hcol_linear_mass_linear_xisSFRmass",
-                     config_overrides={**_REG, "model": _M(ssfr="step", mass="linear")},
+              _build("ssfr/ssfr_step_zeta_hcol_linear_mass_linear_xisSFRmass",
+                     config_overrides={**_REG, "model": _M(ssfr="step", mass="linear", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_mass": {"active": True,  "fixed": 0.0},
                                           "F0":    {"active": False, "fixed": -10.5}}),
@@ -1628,13 +1337,13 @@ EXPERIMENTS = [
               # -- sSFR linear alongside mass linear (both profile-linear;
               #    F0 stays fixed/inactive -- same "degenerate with M if
               #    free" reasoning as the plain ssfr_linear entry above) --
-              _build("ssfr_linear_zeta_hcol_linear_mass_linear",
-                     config_overrides={**_REG, "model": _M(ssfr="linear", mass="linear")},
+              _build("ssfr/ssfr_linear_zeta_hcol_linear_mass_linear",
+                     config_overrides={**_REG, "model": _M(ssfr="linear", mass="linear", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0}}),
 
               # -- sSFR linear + F*S interaction (zeta + xi_sSFR_mass) --
-              _build("ssfr_linear_zeta_hcol_linear_mass_linear_xisSFRmass",
-                     config_overrides={**_REG, "model": _M(ssfr="linear", mass="linear")},
+              _build("ssfr/ssfr_linear_zeta_hcol_linear_mass_linear_xisSFRmass",
+                     config_overrides={**_REG, "model": _M(ssfr="linear", mass="linear", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_mass": {"active": True,  "fixed": 0.0}}),
 
@@ -1645,14 +1354,14 @@ EXPERIMENTS = [
               # =========================================================================
 
               # -- sSFR step alongside host-colour linear --
-              _build("ssfr_step_zeta_hcol_linear_eta_mass_step",
+              _build("ssfr/ssfr_step_zeta_hcol_linear_eta_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
                                           "eta":  {"active": True,  "fixed": 0.0},
                                           "C0":   {"active": False, "fixed": 0.0}}),
 
-              _build("ssfr_step_zeta_hcol_linear_eta_mass_step_xisSFRhcol",
+              _build("ssfr/ssfr_step_zeta_hcol_linear_eta_mass_step_xisSFRhcol",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="linear")},
                      param_overrides={"zeta":    {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_col": {"active": True,  "fixed": 0.0},
@@ -1661,14 +1370,14 @@ EXPERIMENTS = [
                                           "C0":      {"active": False, "fixed": 0.0}}),
 
               # -- sSFR step alongside host-colour tanh --
-              _build("ssfr_step_zeta_hcol_tanh_etaC0_mass_step",
+              _build("ssfr/ssfr_step_zeta_hcol_tanh_etaC0_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="tanh")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
                                           "eta":  {"active": True,  "fixed": 0.0},
                                           "C0":   {"active": True,  "fixed": 0.0}}),
 
-              _build("ssfr_step_zeta_hcol_tanh_etaC0_mass_step_xisSFRhcol",
+              _build("ssfr/ssfr_step_zeta_hcol_tanh_etaC0_mass_step_xisSFRhcol",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="tanh")},
                      param_overrides={"zeta":    {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_col": {"active": True,  "fixed": 0.0},
@@ -1677,14 +1386,14 @@ EXPERIMENTS = [
                                           "C0":      {"active": True,  "fixed": 0.0}}),
 
               # -- sSFR step alongside host-colour sigmoid --
-              _build("ssfr_step_zeta_hcol_sigmoid_etaC0_mass_step",
+              _build("ssfr/ssfr_step_zeta_hcol_sigmoid_etaC0_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="sigmoid")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
                                           "eta":  {"active": True,  "fixed": 0.0},
                                           "C0":   {"active": True,  "fixed": 0.0}}),
 
-              _build("ssfr_step_zeta_hcol_sigmoid_etaC0_mass_step_xisSFRhcol",
+              _build("ssfr/ssfr_step_zeta_hcol_sigmoid_etaC0_mass_step_xisSFRhcol",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="sigmoid")},
                      param_overrides={"zeta":    {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_col": {"active": True,  "fixed": 0.0},
@@ -1693,14 +1402,14 @@ EXPERIMENTS = [
                                           "C0":      {"active": True,  "fixed": 0.0}}),
 
               # -- sSFR step alongside host-colour quadratic --
-              _build("ssfr_step_zeta_hcol_quadratic_etaC0_mass_step",
+              _build("ssfr/ssfr_step_zeta_hcol_quadratic_etaC0_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="quadratic")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
                                           "eta":  {"active": True,  "fixed": 0.0},
                                           "C0":   {"active": True,  "fixed": 0.0}}),
 
-              _build("ssfr_step_zeta_hcol_quadratic_etaC0_mass_step_xisSFRhcol",
+              _build("ssfr/ssfr_step_zeta_hcol_quadratic_etaC0_mass_step_xisSFRhcol",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="quadratic")},
                      param_overrides={"zeta":    {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_col": {"active": True,  "fixed": 0.0},
@@ -1709,14 +1418,14 @@ EXPERIMENTS = [
                                           "C0":      {"active": True,  "fixed": 0.0}}),
 
               # -- sSFR step alongside host-colour asymm --
-              _build("ssfr_step_zeta_hcol_asymm_etaC0htau_mass_step",
+              _build("ssfr/ssfr_step_zeta_hcol_asymm_etaC0htau_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="asymm")},
                      param_overrides={"htau": {"active": True, "fixed": 0.2}, "zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
                                           "eta":  {"active": True,  "fixed": 0.0},
                                           "C0":   {"active": True,  "fixed": 0.0}}),
 
-              _build("ssfr_step_zeta_hcol_asymm_etaC0htau_mass_step_xisSFRhcol",
+              _build("ssfr/ssfr_step_zeta_hcol_asymm_etaC0htau_mass_step_xisSFRhcol",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="asymm")},
                      param_overrides={"htau": {"active": True, "fixed": 0.2}, "zeta":    {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_col": {"active": True,  "fixed": 0.0},
@@ -1725,7 +1434,7 @@ EXPERIMENTS = [
                                           "C0":      {"active": True,  "fixed": 0.0}}),
 
               # -- sSFR tanh alongside host-colour linear --
-              _build("ssfr_tanh_zeta_hcol_linear_eta_mass_step",
+              _build("ssfr/ssfr_tanh_zeta_hcol_linear_eta_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="tanh", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
@@ -1733,7 +1442,7 @@ EXPERIMENTS = [
                                           "eta":  {"active": True,  "fixed": 0.0},
                                           "C0":   {"active": False, "fixed": 0.0}}),
 
-              _build("ssfr_tanh_zeta_hcol_linear_eta_mass_step_xisSFRhcol",
+              _build("ssfr/ssfr_tanh_zeta_hcol_linear_eta_mass_step_xisSFRhcol",
                      config_overrides={**_REG, "model": _M(ssfr="tanh", host_colour="linear")},
                      param_overrides={"zeta":    {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_col": {"active": True,  "fixed": 0.0},
@@ -1742,7 +1451,7 @@ EXPERIMENTS = [
                                           "eta":     {"active": True,  "fixed": 0.0},
                                           "C0":      {"active": False, "fixed": 0.0}}),
 
-              _build("ssfr_tanh_zeta_hcol_tanh_etaC0_mass_step_xisSFRhcol",
+              _build("ssfr/ssfr_tanh_zeta_hcol_tanh_etaC0_mass_step_xisSFRhcol",
                      config_overrides={**_REG, "model": _M(ssfr="tanh", host_colour="tanh")},
                      param_overrides={"zeta":    {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_col": {"active": True,  "fixed": 0.0},
@@ -1761,7 +1470,7 @@ EXPERIMENTS = [
               # -- step F, step mass, linear host colour --
 
               # -- step F, step mass, linear host colour, xi interaction retained --
-              _build("ssfr_step_zeta_hcol_linear_eta_mass_step_xihcolmass",
+              _build("ssfr/ssfr_step_zeta_hcol_linear_eta_mass_step_xihcolmass",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="step", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
@@ -1772,7 +1481,7 @@ EXPERIMENTS = [
 
               # -- step F, step mass, tanh host colour --
 
-              _build("ssfr_step_zetaF0_hcol_tanh_etaC0_mass_step_M0",
+              _build("ssfr/ssfr_step_zetaF0_hcol_tanh_etaC0_mass_step_M0",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="step", host_colour="tanh")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5},
@@ -1782,7 +1491,7 @@ EXPERIMENTS = [
 
               # -- tanh F, step mass, linear host colour --
 
-              _build("ssfr_tanh_zetaF0ftau_hcol_linear_eta_mass_step",
+              _build("ssfr/ssfr_tanh_zetaF0ftau_hcol_linear_eta_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="tanh", mass="step", host_colour="linear")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5},
@@ -1792,7 +1501,7 @@ EXPERIMENTS = [
                                           "M0":   {"active": False, "fixed": 10.0}}),
 
               # -- tanh F, step mass, tanh host colour --
-              _build("ssfr_tanh_zeta_hcol_tanh_etaC0_mass_step",
+              _build("ssfr/ssfr_tanh_zeta_hcol_tanh_etaC0_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="tanh", mass="step", host_colour="tanh")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
@@ -1802,7 +1511,7 @@ EXPERIMENTS = [
                                           "M0":   {"active": False, "fixed": 10.0}}),
 
               # -- sigmoid F, step mass, linear host colour --
-              _build("ssfr_sigmoid_zeta_hcol_linear_eta_mass_step",
+              _build("ssfr/ssfr_sigmoid_zeta_hcol_linear_eta_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="sigmoid", mass="step", host_colour="linear")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
@@ -1811,7 +1520,7 @@ EXPERIMENTS = [
                                           "C0":   {"active": False, "fixed": 0.0},
                                           "M0":   {"active": False, "fixed": 10.0}}),
 
-              _build("ssfr_sigmoid_zetaF0ftau_hcol_linear_eta_mass_step",
+              _build("ssfr/ssfr_sigmoid_zetaF0ftau_hcol_linear_eta_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="sigmoid", mass="step", host_colour="linear")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5},
@@ -1829,7 +1538,7 @@ EXPERIMENTS = [
               # =========================================================================
 
               # -- xi_sSFR_mass: F*S (sSFR × mass) --
-              _build("ssfr_step_zeta_hcol_linear_eta_mass_step_xisSFRmass",
+              _build("ssfr/ssfr_step_zeta_hcol_linear_eta_mass_step_xisSFRmass",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="step", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_mass": {"active": True,  "fixed": 0.0},
@@ -1842,7 +1551,7 @@ EXPERIMENTS = [
 
 
               # -- xi_sSFR_mass + xi_sSFR_col: F*S and F*H simultaneously --
-              _build("ssfr_step_zeta_hcol_linear_eta_mass_step_xisSFRmassxisSFRhcol",
+              _build("ssfr/ssfr_step_zeta_hcol_linear_eta_mass_step_xisSFRmassxisSFRhcol",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="step", host_colour="linear")},
                      param_overrides={"zeta":    {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_mass":   {"active": True,  "fixed": 0.0},
@@ -1853,7 +1562,7 @@ EXPERIMENTS = [
                                           "M0":      {"active": False, "fixed": 10.0}}),
 
               # -- omega: F*S*H (three-way) alone --
-              _build("ssfr_step_zeta_hcol_linear_eta_mass_step_omega",
+              _build("ssfr/ssfr_step_zeta_hcol_linear_eta_mass_step_omega",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="step", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True,  "fixed": 0.0},
                                           "omega": {"active": True,  "fixed": 0.0},
@@ -1863,7 +1572,7 @@ EXPERIMENTS = [
                                           "M0":    {"active": False, "fixed": 10.0}}),
 
               # -- Full four-term sSFR expansion: zeta + xi_sSFR_mass + xi_sSFR_col + omega --
-              _build("ssfr_step_zeta_hcol_linear_eta_mass_step_xisSFRmassxisSFRhcolxihcolmassomega",
+              _build("ssfr/ssfr_step_zeta_hcol_linear_eta_mass_step_xisSFRmassxisSFRhcolxihcolmassomega",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="step", host_colour="linear")},
                      param_overrides={"zeta":    {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_mass":   {"active": True,  "fixed": 0.0},
@@ -1876,7 +1585,7 @@ EXPERIMENTS = [
                                           "M0":      {"active": False, "fixed": 10.0}}),
 
               # -- Full four-term with tanh host colour --
-              _build("ssfr_step_zeta_hcol_tanh_etaC0_mass_step_xisSFRmassxisSFRhcolxihcolmassomega",
+              _build("ssfr/ssfr_step_zeta_hcol_tanh_etaC0_mass_step_xisSFRmassxisSFRhcolxihcolmassomega",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="step", host_colour="tanh")},
                      param_overrides={"zeta":    {"active": True,  "fixed": 0.0},
                                           "xi_sSFR_mass":   {"active": True,  "fixed": 0.0},
@@ -1889,7 +1598,7 @@ EXPERIMENTS = [
                                           "M0":      {"active": False, "fixed": 10.0}}),
 
               # -- Full four-term with F0 and M0 free --
-              _build("ssfr_step_zetaF0_hcol_linear_eta_mass_step_M0xisSFRmassxisSFRhcolxihcolmassomega",
+              _build("ssfr/ssfr_step_zetaF0_hcol_linear_eta_mass_step_M0xisSFRmassxisSFRhcolxihcolmassomega",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="step", host_colour="linear")},
                      param_overrides={"zeta":    {"active": True, "fixed": 0.0},
                                           "xi_sSFR_mass":   {"active": True, "fixed": 0.0},
@@ -1908,27 +1617,27 @@ EXPERIMENTS = [
               #     a significant fraction of the information in S.
               # =========================================================================
 
-              _build("ssfr_step_zeta_hcol_linear_mass_none",
-                     config_overrides={**_REG, "model": _M(ssfr="step", mass="none")},
+              _build("ssfr/ssfr_step_zeta_hcol_linear_mass_none",
+                     config_overrides={**_REG, "model": _M(ssfr="step", mass="none", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True,  "fixed": 0.0},
                                           "F0":    {"active": False, "fixed": -10.5},
                                           "gamma": {"active": False, "fixed": 0.0}}),
 
-              _build("ssfr_step_zetaF0_hcol_linear_mass_none",
-                     config_overrides={**_REG, "model": _M(ssfr="step", mass="none")},
+              _build("ssfr/ssfr_step_zetaF0_hcol_linear_mass_none",
+                     config_overrides={**_REG, "model": _M(ssfr="step", mass="none", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
                                           "gamma": {"active": False, "fixed": 0.0}}),
 
-              _build("ssfr_tanh_zetaF0ftau_hcol_linear_mass_none",
-                     config_overrides={**_REG, "model": _M(ssfr="tanh", mass="none")},
+              _build("ssfr/ssfr_tanh_zetaF0ftau_hcol_linear_mass_none",
+                     config_overrides={**_REG, "model": _M(ssfr="tanh", mass="none", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
                                           "ftau":  {"active": True, "fixed": 0.5},
                                           "gamma": {"active": False, "fixed": 0.0}}),
 
-              _build("ssfr_sigmoid_zetaF0ftau_hcol_linear_mass_none",
-                     config_overrides={**_REG, "model": _M(ssfr="sigmoid", mass="none")},
+              _build("ssfr/ssfr_sigmoid_zetaF0ftau_hcol_linear_mass_none",
+                     config_overrides={**_REG, "model": _M(ssfr="sigmoid", mass="none", host_colour="linear")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
                                           "ftau":  {"active": True, "fixed": 0.5},
@@ -1939,19 +1648,19 @@ EXPERIMENTS = [
               #     Tests whether sSFR is a substitute for host colour.
               # =========================================================================
 
-              _build("ssfr_step_zeta_hcol_none_mass_step",
+              _build("ssfr/ssfr_step_zeta_hcol_none_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="none")},
                      param_overrides={"zeta": {"active": True,  "fixed": 0.0},
                                           "F0":   {"active": False, "fixed": -10.5},
                                           "eta":  {"active": False, "fixed": 0.0}}),
 
-              _build("ssfr_step_zetaF0_hcol_none_mass_step",
+              _build("ssfr/ssfr_step_zetaF0_hcol_none_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="step", host_colour="none")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5},
                                           "eta":  {"active": False, "fixed": 0.0}}),
 
-              _build("ssfr_tanh_zetaF0ftau_hcol_none_mass_step",
+              _build("ssfr/ssfr_tanh_zetaF0ftau_hcol_none_mass_step",
                      config_overrides={**_REG, "model": _M(ssfr="tanh", host_colour="none")},
                      param_overrides={"zeta": {"active": True, "fixed": 0.0},
                                           "F0":   {"active": True, "fixed": -10.5},
@@ -1964,21 +1673,21 @@ EXPERIMENTS = [
               #     information.  Useful primarily for an evidence comparison.
               # =========================================================================
 
-              _build("ssfr_step_zeta_hcol_none_mass_none",
+              _build("ssfr/ssfr_step_zeta_hcol_none_mass_none",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="none", host_colour="none")},
                      param_overrides={"zeta":  {"active": True,  "fixed": 0.0},
                                           "F0":    {"active": False, "fixed": -10.5},
                                           "gamma": {"active": False, "fixed": 0.0},
                                           "eta":   {"active": False, "fixed": 0.0}}),
 
-              _build("ssfr_step_zetaF0_hcol_none_mass_none",
+              _build("ssfr/ssfr_step_zetaF0_hcol_none_mass_none",
                      config_overrides={**_REG, "model": _M(ssfr="step", mass="none", host_colour="none")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
                                           "gamma": {"active": False, "fixed": 0.0},
                                           "eta":   {"active": False, "fixed": 0.0}}),
 
-              _build("ssfr_tanh_zetaF0ftau_hcol_none_mass_none",
+              _build("ssfr/ssfr_tanh_zetaF0ftau_hcol_none_mass_none",
                      config_overrides={**_REG, "model": _M(ssfr="tanh", mass="none", host_colour="none")},
                      param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                           "F0":    {"active": True, "fixed": -10.5},
@@ -2028,12 +1737,12 @@ def _resolve_indices(index_str, n):
         lo, hi = index_str.split("-")
         return list(range(int(lo), int(hi) + 1))
     return [int(index_str)]
- 
+
 def _run_one(args_tuple):
     import time, traceback, sys, os
- 
+
     idx, cfg, log_dir = args_tuple
- 
+
     # ── Belt-and-braces thread clamp ──────────────────────────────────────
     # With spawn mode the module-level env var block (top of file) already
     # runs in every worker before numpy loads, so this is truly redundant.
@@ -2047,7 +1756,7 @@ def _run_one(args_tuple):
         "BLIS_NUM_THREADS",
     ):
         os.environ[var] = "1"
- 
+
     # threadpoolctl guard — catches any BLAS libraries dlopen'd after env vars
     # were read.  Errors are silently swallowed; the env vars above suffice.
     import io
@@ -2063,25 +1772,25 @@ def _run_one(args_tuple):
         os.dup2(_saved_stderr_fd, 2)
         os.close(_saved_stderr_fd)
         os.close(_devnull_fd)
- 
+
     tag = cfg["run_tag"]
     safe_tag = tag.replace("/", "_")
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, f"{safe_tag}.log")
- 
+
     t0 = time.time()
     with open(log_path, "w", buffering=1) as log:   # buffering=1 → line-buffered
         log.write(f"=== [{idx}] {tag} ===\n")
         log.write(f"Started: {datetime.now().isoformat()}\n")
         log.write(f"PID: {os.getpid()}  CPU count: {os.cpu_count()}\n\n")
         log.flush()
- 
+
         # Redirect both stdout and stderr to the log file for this process.
         # dynesty's progress bar and all print() calls from run.py go here.
         old_stdout, old_stderr = sys.stdout, sys.stderr
         sys.stdout = log
         sys.stderr = log
- 
+
         try:
             run_sampler(cfg)
             elapsed = time.time() - t0
@@ -2108,7 +1817,7 @@ def _run_one(args_tuple):
             # even if the log file write above failed.
             print(f"\n[worker {idx}] FAILED: {tb}", file=sys.stderr, flush=True)
             return (idx, tag, "failed", elapsed, tb)
- 
+
 def _parse_args():
     p = argparse.ArgumentParser(description="Run SNe Ia experiment suite")
     p.add_argument("--tag", default=None,
@@ -2146,14 +1855,14 @@ def _parse_args():
                              help="Override nlive_mode to 'exploratory' for all selected "
                                   "experiments (ndim x 50 live points)")
     return p.parse_args()
- 
+
 def main():
     import os
     from concurrent.futures import ProcessPoolExecutor, as_completed
     from datetime import datetime
- 
+
     args = _parse_args()
- 
+
     # ---- Resolve nlive mode from CLI flags ----
     # --publication / --explore override whatever nlive_mode is stored in each
     # experiment's config.  If neither flag is given, each experiment uses its
@@ -2164,7 +1873,7 @@ def main():
         _cli_mode = "exploratory"
     else:
         _cli_mode = None   # use per-experiment setting
- 
+
     def _nlive_display(cfg):
         """nlive that will be used, for display and summary purposes."""
         if cfg.get("nlive"):
@@ -2172,10 +1881,10 @@ def main():
         mode = _cli_mode or cfg.get("nlive_mode", "exploratory")
         n = sum(1 for s in cfg["param_specs"].values() if s["active"])
         return n * 500 if mode == "publication" else n * 50
- 
+
     # ---- Filter experiments ----
     selected = list(enumerate(EXPERIMENTS))
- 
+
     if args.list:
         mode_label = _cli_mode or "per-experiment"
         print(f"{'idx':>4}  {'tag':<45}  params  nlive  (mode: {mode_label})")
@@ -2184,18 +1893,18 @@ def main():
             n = sum(1 for s in cfg["param_specs"].values() if s["active"])
             print(f"{i:>4}  {cfg['run_tag']:<45}  {n:>6}  {_nlive_display(cfg)}")
         sys.exit(0)
- 
+
     if args.index is not None:
         indices = _resolve_indices(args.index, len(EXPERIMENTS))
         selected = [(i, e) for i, e in selected if i in indices]
- 
+
     if args.tag is not None:
         selected = [(i, e) for i, e in selected if args.tag in e["run_tag"]]
- 
+
     if not selected:
         print("No experiments matched. Use --list to see all available.")
         sys.exit(1)
- 
+
     # ---- Apply CLI nlive_mode override to every selected experiment ----
     # This must happen after filtering so we only mutate the configs that
     # will actually be run.  We deep-copy nothing extra — _build() already
@@ -2213,7 +1922,7 @@ def main():
             cfg["progress_interval"] = args.progress_interval
         if args.quiet:
             cfg["verbose"] = False
- 
+
     # ---- Skip experiments already in the registry (unless --rerun) ----
     # Read every run_tag recorded in any registry CSV referenced by the
     # selected experiments.  If the tag already appears, skip it.
@@ -2253,10 +1962,10 @@ def main():
     )
     if args.sequential:
         n_workers = 1
- 
+
     log_dir = args.log_dir
     mode_label = _cli_mode or "per-experiment"
- 
+
     print(f"\n{'='*60}")
     print(f"Experiments : {len(selected)}")
     print(f"nlive mode  : {mode_label}")
@@ -2267,25 +1976,25 @@ def main():
         n = sum(1 for s in cfg["param_specs"].values() if s["active"])
         print(f"  [{i:>2}]  {cfg['run_tag']:<45}  {n} params  nlive={_nlive_display(cfg)}")
     print(f"{'='*60}\n")
- 
+
     if args.dry_run:
         print("Dry run — exiting without sampling.")
         sys.exit(0)
- 
+
     print(f"Logs are written to {os.path.abspath(log_dir)}/<tag>.log")
     print(f"Monitor a run with:  tail -f {log_dir}/<tag>.log\n")
- 
+
     # ---- Master summary log ----
     os.makedirs(log_dir, exist_ok=True)
     summary_path = os.path.join(log_dir, "summary_kerr.log")
     summary = open(summary_path, "w", buffering=1)
     summary.write(f"Run started: {datetime.now().isoformat()}\n")
     summary.write(f"Experiments: {len(selected)}  Workers: {n_workers}  nlive mode: {mode_label}\n\n")
- 
+
     # ---- Dispatch ----
     work = [(i, cfg, log_dir) for i, cfg in selected]
     results = []
- 
+
     if n_workers == 1:
         # Sequential — useful for debugging or single-core servers
         for item in work:
@@ -2312,7 +2021,7 @@ def main():
         # this is completely negligible.
         import multiprocessing as _mp
         _ctx = _mp.get_context("spawn")
- 
+
         with ProcessPoolExecutor(max_workers=n_workers, mp_context=_ctx) as pool:
             futures = {pool.submit(_run_one, item): item[0] for item in work}
             for fut in as_completed(futures):
@@ -2334,7 +2043,7 @@ def main():
                 print(line, end="")
                 summary.write(line)
                 summary.flush()
- 
+
     # ---- Final summary ----
     ok     = [r for r in results if r[2] == "ok"]
     failed = [r for r in results if r[2] == "failed"]
@@ -2346,12 +2055,12 @@ def main():
             first_line = err.strip().splitlines()[-1] if err else "unknown"
             footer += f"  [{idx}] {tag}: {first_line}\n"
     footer += f"{'='*60}\n"
- 
+
     print(footer)
     summary.write(footer)
     summary.close()
     print(f"Full summary written to: {summary_path}")
- 
- 
+
+
 if __name__ == "__main__":
     main()

@@ -102,362 +102,370 @@ _build    = _registry.build
 # Each entry is a call to _build().  Add / remove entries freely.
 # The tag becomes part of the run name and the registry CSV.
 #
-# Convention used here:
-#   cosmology/    — cosmological model variants
-#   nuisance/     — SALT2 nuisance parameter variants
-#   sn_col_model/ — SN colour / mass / host-colour model variants
-#   sampler/      — sampler setting variants
-#   mass/         — mass step functional form variants
-#   interaction/  — interaction term variants
-#
-# You can use any tag scheme you like; these are just strings.
+# Every entry here uses the "checks/" prefix (see experiment_naming.py's
+# module docstring: "checks/" is reserved exclusively for this file and the
+# other post-hoc systematic-check scripts -- extra_runners.py never uses
+# any of the category prefixes experiment_runner.py uses, e.g. "sncolour/",
+# "host_col/", "mass/", "ssfr/"; those categorise the primary model search,
+# not systematic checks on top of it). Within "checks/", the sub-name
+# after the prefix indicates which systematic is being probed:
+#   checks/masscut_...   — host-mass cut sensitivity
+#   checks/zlow_/zhi_...  — low-z / high-z redshift-range sensitivity
+#   checks/ccut_...      — SALT3 colour-cut sensitivity
+#   checks/x1cut_...     — SALT3 stretch-cut sensitivity
+#   checks/wcdm_/lcdm_... — wCDM / LambdaCDM cosmology cross-checks
+#   checks/std_...        — standard/reference fits used as the baseline
+#                           for the checks above
+#   checks/specz / checks/photz — spec-z vs. photo-z subsample checks
+#   checks/hostquality_... — host-match quality checks
+#   checks/id_...          — individual-SN outlier/leave-one-out checks
 # ===========================================================================
 
 EXPERIMENTS = [
- 
+
             # Standard
-            _build("checks/std_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}, 
+            _build("checks/std_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "w": {"active": False, "fixed": -1}}),
-            
-            _build("checks/std_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/std_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": False, "fixed": -1}}),            
+                                    "w": {"active": False, "fixed": -1}}),
 
-            _build("checks/std_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/std_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": False, "fixed": -1}}),  
+                                    "w": {"active": False, "fixed": -1}}),
 
-            _build("checks/std_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/std_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": False, "fixed": -1}}),  
-            
+                                    "w": {"active": False, "fixed": -1}}),
+
             # standard mass
-            
-            _build("checks/std_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
+
+            _build("checks/std_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "w": {"active": False, "fixed": -1}}),            
+                                    "w": {"active": False, "fixed": -1}}),
 
-            _build("checks/std_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
+            _build("checks/std_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "w": {"active": False, "fixed": -1}}),  
+                                    "w": {"active": False, "fixed": -1}}),
 
-            _build("checks/std_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear"}, 
+            _build("checks/std_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "linear"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "w": {"active": False, "fixed": -1}}),              
-            
+                                    "w": {"active": False, "fixed": -1}}),
+
             # standard mass and ssfr
-            
-            _build("checks/std_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/std_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": False, "fixed": -1}}),            
+                                    "w": {"active": False, "fixed": -1}}),
 
-            _build("checks/std_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/std_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": False, "fixed": -1}}),  
+                                    "w": {"active": False, "fixed": -1}}),
 
-            _build("checks/std_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/std_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": False, "fixed": -1}}),         
-            
+                                    "w": {"active": False, "fixed": -1}}),
+
             # WCDM
-            _build("checks/wcdm_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}, 
+            _build("checks/wcdm_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "w": {"active": True, "fixed": None}}),
-            
-            _build("checks/wcdm_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/wcdm_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": True, "fixed": None}}),            
+                                    "w": {"active": True, "fixed": None}}),
 
-            _build("checks/wcdm_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/wcdm_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": True, "fixed": None}}),  
+                                    "w": {"active": True, "fixed": None}}),
 
-            _build("checks/wcdm_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/wcdm_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": True, "fixed": None}}),  
-            
+                                    "w": {"active": True, "fixed": None}}),
+
             # WCDM mass
-            
-            _build("checks/wcdm_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
+
+            _build("checks/wcdm_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "w": {"active": True, "fixed": None}}),            
+                                    "w": {"active": True, "fixed": None}}),
 
-            _build("checks/wcdm_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
+            _build("checks/wcdm_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "w": {"active": True, "fixed": None}}),  
+                                    "w": {"active": True, "fixed": None}}),
 
-            _build("checks/wcdm_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear"}, 
+            _build("checks/wcdm_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "linear"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "w": {"active": True, "fixed": None}}),              
-            
+                                    "w": {"active": True, "fixed": None}}),
+
             # WCDM mass and ssfr
-            
-            _build("checks/wcdm_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/wcdm_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": True, "fixed": None}}),            
+                                    "w": {"active": True, "fixed": None}}),
 
-            _build("checks/wcdm_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/wcdm_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": True, "fixed": None}}),  
+                                    "w": {"active": True, "fixed": None}}),
 
-            _build("checks/wcdm_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/wcdm_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "w": {"active": True, "fixed": None}}),     
-            
+                                    "w": {"active": True, "fixed": None}}),
+
             # LCDM
-            _build("checks/lcdm_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}, 
+            _build("checks/lcdm_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "Ode0": {"active": True, "fixed": 0.6824}}),
-            
-            _build("checks/lcdm_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/lcdm_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "Ode0": {"active": True, "fixed": 0.6824}}),            
+                                    "Ode0": {"active": True, "fixed": 0.6824}}),
 
-            _build("checks/lcdm_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/lcdm_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "Ode0": {"active": True, "fixed": 0.6824}}),  
+                                    "Ode0": {"active": True, "fixed": 0.6824}}),
 
-            _build("checks/lcdm_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/lcdm_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "Ode0": {"active": True, "fixed": 0.6824}}),  
-            
+                                    "Ode0": {"active": True, "fixed": 0.6824}}),
+
             # LCDM mass
-            
-            _build("checks/lcdm_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
+
+            _build("checks/lcdm_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "Ode0": {"active": True, "fixed": 0.6824}}),            
+                                    "Ode0": {"active": True, "fixed": 0.6824}}),
 
-            _build("checks/lcdm_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
+            _build("checks/lcdm_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "Ode0": {"active": True, "fixed": 0.6824}}),  
+                                    "Ode0": {"active": True, "fixed": 0.6824}}),
 
-            _build("checks/lcdm_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear"}, 
+            _build("checks/lcdm_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "linear"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "Ode0": {"active": True, "fixed": 0.6824}}),     
-            
+                                    "Ode0": {"active": True, "fixed": 0.6824}}),
+
             # LCDM mass and ssfr
-            
-            _build("checks/lcdm_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/lcdm_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "Ode0": {"active": True, "fixed": 0.6824}}),            
+                                    "Ode0": {"active": True, "fixed": 0.6824}}),
 
-            _build("checks/lcdm_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/lcdm_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "Ode0": {"active": True, "fixed": 0.6824}}),  
+                                    "Ode0": {"active": True, "fixed": 0.6824}}),
 
-            _build("checks/lcdm_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/lcdm_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0},
-                                    "Ode0": {"active": True, "fixed": 0.6824}}),                
-            
+                                    "Ode0": {"active": True, "fixed": 0.6824}}),
+
             # z Low
-            _build("checks/zlow_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/zlow_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zlo": 0.1},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "c0": {"active": False, "fixed": 0}}),
-            
-            _build("checks/zlow_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+
+            _build("checks/zlow_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zlo": 0.1},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
@@ -466,9 +474,9 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/zlow_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/zlow_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zlo": 0.1},
                    param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
@@ -478,92 +486,92 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/zlow_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/zlow_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zlo": 0.1},
                    param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0}}),
-            
-            _build("checks/zlow_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "zlo": 0.1}),
+
+            _build("checks/zlow_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "zlo": 0.1, "model": {**CONFIG["model"], "host_colour": "linear"}}),
 
             # z Low mass
-            
-            _build("checks/zlow_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+
+            _build("checks/zlow_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zlo": 0.1},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/zlow_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/zlow_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zlo": 0.1},
                    param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/zlow_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", }, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/zlow_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "linear", },
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zlo": 0.1},
                    param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "gamma": {"active": True, "fixed": 0.0}}),
 
             # z low mass and ssfr
-            
-            _build("checks/zlow_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/zlow_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "zlo": 0.1},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),            
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/zlow_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/zlow_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "zlo": 0.1},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),  
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/zlow_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/zlow_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "zlo": 0.1},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),    
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
             # z high
-            _build("checks/zhi_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/zhi_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zhi": 0.1},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "c0": {"active": False, "fixed": 0}}),
-            
-            _build("checks/zhi_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+
+            _build("checks/zhi_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zhi": 0.1},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
@@ -572,9 +580,9 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/zhi_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/zhi_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zhi": 0.1},
                    param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
@@ -584,92 +592,92 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/zhi_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/zhi_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zhi": 0.1},
                    param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0}}),
-            
-            _build("checks/zhi_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "zhi": 0.1}),
+
+            _build("checks/zhi_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "zhi": 0.1, "model": {**CONFIG["model"], "host_colour": "linear"}}),
 
             # z high mass
-            
-            _build("checks/zhi_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+
+            _build("checks/zhi_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zhi": 0.1},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/zhi_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/zhi_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zhi": 0.1},
                    param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/zhi_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", }, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/zhi_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "linear", },
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "zhi": 0.1},
                    param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "gamma": {"active": True, "fixed": 0.0}}),
-            
+
             # z high mass and ssfr
-            
-            _build("checks/zhi_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/zhi_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "zhi": 0.1},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),            
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/zhi_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/zhi_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "zhi": 0.1},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),  
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/zhi_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/zhi_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "zhi": 0.1},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),             
-            
+                                    "eta":   {"active": False, "fixed": 0.0}}),
+
             # ID Survey
-            _build("checks/id_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/id_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "idsurvey": True},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "c0": {"active": False, "fixed": 0}}),
-            
-            _build("checks/id_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+
+            _build("checks/id_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "idsurvey": True},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
@@ -678,9 +686,9 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/id_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/id_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "idsurvey": True},
                    param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
@@ -690,198 +698,92 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/id_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/id_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "idsurvey": True},
                    param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0}}),
-            
-            _build("checks/id_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "idsurvey": True}),
+
+            _build("checks/id_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "idsurvey": True, "model": {**CONFIG["model"], "host_colour": "linear"}}),
 
             # ID Survey mass
-            
-            _build("checks/id_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+
+            _build("checks/id_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "idsurvey": True},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/id_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/id_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "idsurvey": True},
                    param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/id_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", }, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/id_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "linear", },
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "idsurvey": True},
                    param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "gamma": {"active": True, "fixed": 0.0}}),
-            
+
             # ID Survey mass and ssfr
-            
-            _build("checks/id_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/id_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "idsurvey": True},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),            
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/id_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/id_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "idsurvey": True},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),  
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/id_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/id_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "idsurvey": True},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),               
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
             # Mass low
-            _build("checks/masscut_low_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "mass_cut": "low"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "sn_tau": {"active": True, "fixed": 0.3},
-                                    "c0": {"active": False, "fixed": 0}}),
-            
-            _build("checks/masscut_low_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "mass_cut": "low"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "sn_tau": {"active": True, "fixed": 0.3},
-                                    "zeta":  {"active": True, "fixed": 0.0},
-                                    "F0":    {"active": True, "fixed": -10.5},
-                                    "ftau":  {"active": True, "fixed": 0.5},
-                                    "gamma": {"active": False, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0},
-                                    "c0": {"active": False, "fixed": 0}}),
-
-            _build("checks/masscut_low_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "mass_cut": "low"},
-                   param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
-                                    "zeta":  {"active": True, "fixed": 0.0},
-                                    "F0":    {"active": True, "fixed": -10.5},
-                                    "ftau":  {"active": True, "fixed": 0.5},
-                                    "gamma": {"active": False, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0},
-                                    "c0": {"active": False, "fixed": 0}}),
-
-            _build("checks/masscut_low_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "mass_cut": "low"},
-                   param_overrides={"zeta":  {"active": True, "fixed": 0.0},
-                                    "F0":    {"active": True, "fixed": -10.5},
-                                    "ftau":  {"active": True, "fixed": 0.5},
-                                    "gamma": {"active": False, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),
-            
-            _build("checks/masscut_low_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "mass_cut": "low"}),
-
-            # Mass cut low mass linear
-            
-            _build("checks/masscut_low_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "mass_cut": "low"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "sn_tau": {"active": True, "fixed": 0.3},
-                                    "gamma": {"active": True, "fixed": 0.0},
-                                    "c0": {"active": False, "fixed": 0}}),
-
-            _build("checks/masscut_low_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "mass_cut": "low"},
-                   param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
-                                    "gamma": {"active": True, "fixed": 0.0},
-                                    "c0": {"active": False, "fixed": 0}}),
-
-            _build("checks/masscut_low_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", }, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/masscut_low_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "mass_cut": "low"},
                    param_overrides={"gamma_alpha": {"active": True, "fixed": None},
-                                    "gamma": {"active": True, "fixed": 0.0}}), 
-            
-            # Mass low mass and ssfr
-            
-            _build("checks/masscut_low_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", "mass_cut": "low"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
-                                    "sn_tau": {"active": True, "fixed": 0.3},
-                                    "zeta":  {"active": True, "fixed": 0.0},
-                                    "F0":    {"active": True, "fixed": -10.5},
-                                    "ftau":  {"active": True, "fixed": 0.5},
-                                    "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),            
-
-            _build("checks/masscut_low_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", "mass_cut": "low"},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
-                                    "sn_tau": {"active": True, "fixed": 0.3},
-                                    "zeta":  {"active": True, "fixed": 0.0},
-                                    "F0":    {"active": True, "fixed": -10.5},
-                                    "ftau":  {"active": True, "fixed": 0.5},
-                                    "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),  
-
-            _build("checks/masscut_low_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", "mass_cut": "low"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
-                                    "zeta":  {"active": True, "fixed": 0.0},
-                                    "F0":    {"active": True, "fixed": -10.5},
-                                    "ftau":  {"active": True, "fixed": 0.5},
-                                    "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),                   
-            
-            # Mass cut high
-            _build("checks/masscut_high_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "mass_cut": "high"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "c0": {"active": False, "fixed": 0}}),
-            
-            _build("checks/masscut_high_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "mass_cut": "high"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+
+            _build("checks/masscut_low_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "mass_cut": "low"},
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
@@ -890,9 +792,115 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/masscut_high_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/masscut_low_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "mass_cut": "low"},
+                   param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
+                                    "zeta":  {"active": True, "fixed": 0.0},
+                                    "F0":    {"active": True, "fixed": -10.5},
+                                    "ftau":  {"active": True, "fixed": 0.5},
+                                    "gamma": {"active": False, "fixed": 0.0},
+                                    "eta":   {"active": False, "fixed": 0.0},
+                                    "c0": {"active": False, "fixed": 0}}),
+
+            _build("checks/masscut_low_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "mass_cut": "low"},
+                   param_overrides={"zeta":  {"active": True, "fixed": 0.0},
+                                    "F0":    {"active": True, "fixed": -10.5},
+                                    "ftau":  {"active": True, "fixed": 0.5},
+                                    "gamma": {"active": False, "fixed": 0.0},
+                                    "eta":   {"active": False, "fixed": 0.0}}),
+
+            _build("checks/masscut_low_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "mass_cut": "low", "model": {**CONFIG["model"], "host_colour": "linear"}}),
+
+            # Mass cut low mass linear
+
+            _build("checks/masscut_low_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "mass_cut": "low"},
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "sn_tau": {"active": True, "fixed": 0.3},
+                                    "gamma": {"active": True, "fixed": 0.0},
+                                    "c0": {"active": False, "fixed": 0}}),
+
+            _build("checks/masscut_low_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "mass_cut": "low"},
+                   param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
+                                    "gamma": {"active": True, "fixed": 0.0},
+                                    "c0": {"active": False, "fixed": 0}}),
+
+            _build("checks/masscut_low_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "linear", },
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "mass_cut": "low"},
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "gamma": {"active": True, "fixed": 0.0}}),
+
+            # Mass low mass and ssfr
+
+            _build("checks/masscut_low_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv", "mass_cut": "low"},
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
+                                    "sn_tau": {"active": True, "fixed": 0.3},
+                                    "zeta":  {"active": True, "fixed": 0.0},
+                                    "F0":    {"active": True, "fixed": -10.5},
+                                    "ftau":  {"active": True, "fixed": 0.5},
+                                    "gamma": {"active": True, "fixed": 0.0},
+                                    "eta":   {"active": False, "fixed": 0.0}}),
+
+            _build("checks/masscut_low_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv", "mass_cut": "low"},
+                   param_overrides={"c0": {"active": False, "fixed": 0},
+                                    "sn_tau": {"active": True, "fixed": 0.3},
+                                    "zeta":  {"active": True, "fixed": 0.0},
+                                    "F0":    {"active": True, "fixed": -10.5},
+                                    "ftau":  {"active": True, "fixed": 0.5},
+                                    "gamma": {"active": True, "fixed": 0.0},
+                                    "eta":   {"active": False, "fixed": 0.0}}),
+
+            _build("checks/masscut_low_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv", "mass_cut": "low"},
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
+                                    "zeta":  {"active": True, "fixed": 0.0},
+                                    "F0":    {"active": True, "fixed": -10.5},
+                                    "ftau":  {"active": True, "fixed": 0.5},
+                                    "gamma": {"active": True, "fixed": 0.0},
+                                    "eta":   {"active": False, "fixed": 0.0}}),
+
+            # Mass cut high
+            _build("checks/masscut_high_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"},
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "mass_cut": "high"},
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "sn_tau": {"active": True, "fixed": 0.3},
+                                    "c0": {"active": False, "fixed": 0}}),
+
+            _build("checks/masscut_high_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "mass_cut": "high"},
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "sn_tau": {"active": True, "fixed": 0.3},
+                                    "zeta":  {"active": True, "fixed": 0.0},
+                                    "F0":    {"active": True, "fixed": -10.5},
+                                    "ftau":  {"active": True, "fixed": 0.5},
+                                    "gamma": {"active": False, "fixed": 0.0},
+                                    "eta":   {"active": False, "fixed": 0.0},
+                                    "c0": {"active": False, "fixed": 0}}),
+
+            _build("checks/masscut_high_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "mass_cut": "high"},
                    param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
@@ -902,17 +910,17 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/masscut_high_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/masscut_high_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "mass_cut": "high"},
                    param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0}}),
-            
-            _build("checks/masscut_high_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "mass_cut": "high"}),
+
+            _build("checks/masscut_high_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "mass_cut": "high", "model": {**CONFIG["model"], "host_colour": "linear"}}),
 
             # ---- Host redshift observation type (spec-z vs photo-z host) ----
             # NOTE: on the DES-Dovekie metadata used during development, the
@@ -922,8 +930,8 @@ EXPERIMENTS = [
             # in for completeness / future larger samples but expect it to
             # fail or return a garbage posterior on the current dataset;
             # check n_heldout-style SNe counts in the log before trusting it.
-            _build("checks/specz_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "obs_z_type": "spec"}),
-            _build("checks/photz_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "obs_z_type": "phot"}),
+            _build("checks/specz_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "obs_z_type": "spec", "model": {**CONFIG["model"], "host_colour": "linear"}}),
+            _build("checks/photz_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "obs_z_type": "phot", "model": {**CONFIG["model"], "host_colour": "linear"}}),
 
             # ---- Host-match quality (strict DDLR/CONFUSION/NMATCH cut) ----
             # See host_match_quality.py for the paired "all" vs "strict"
@@ -935,82 +943,82 @@ EXPERIMENTS = [
             # config.py now carries and host_match_quality.DDLR_MAX uses) so
             # this row states the threshold it was run at rather than
             # inheriting whatever CONFIG happens to hold.
-            _build("checks/hostquality_strict_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "host_quality_cut": "strict", "host_ddlr_max": 2.0}),
+            _build("checks/hostquality_strict_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "host_quality_cut": "strict", "host_ddlr_max": 2.0, "model": {**CONFIG["model"], "host_colour": "linear"}}),
 
             # Mass cut high mass linear
-            
-            _build("checks/masscut_high_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "mass_cut": "high"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "sn_tau": {"active": True, "fixed": 0.3},
-                                    "gamma": {"active": True, "fixed": 0.0},
-                                    "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/masscut_high_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "mass_cut": "high"},
-                   param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
-                                    "gamma": {"active": True, "fixed": 0.0},
-                                    "c0": {"active": False, "fixed": 0}}),
-
-            _build("checks/masscut_high_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", }, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/masscut_high_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "mass_cut": "high"},
                    param_overrides={"gamma_alpha": {"active": True, "fixed": None},
-                                    "gamma": {"active": True, "fixed": 0.0}}),      
-            
+                                    "sn_tau": {"active": True, "fixed": 0.3},
+                                    "gamma": {"active": True, "fixed": 0.0},
+                                    "c0": {"active": False, "fixed": 0}}),
+
+            _build("checks/masscut_high_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "mass_cut": "high"},
+                   param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
+                                    "gamma": {"active": True, "fixed": 0.0},
+                                    "c0": {"active": False, "fixed": 0}}),
+
+            _build("checks/masscut_high_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "linear", },
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "mass_cut": "high"},
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "gamma": {"active": True, "fixed": 0.0}}),
+
             # Mass high mass and ssfr
-            
-            _build("checks/masscut_high_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/masscut_high_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "mass_cut": "high"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),            
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/masscut_high_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/masscut_high_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "mass_cut": "high"},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),  
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/masscut_high_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/masscut_high_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "mass_cut": "high"},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),                  
-            
+                                    "eta":   {"active": False, "fixed": 0.0}}),
+
             # x1 cuts
-            _build("checks/x1cut_high_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/x1cut_high_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "x1_range": [-2, 2]},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "c0": {"active": False, "fixed": 0}}),
-            
-            _build("checks/x1cut_high_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+
+            _build("checks/x1cut_high_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "x1_range": [-2, 2]},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
@@ -1019,9 +1027,9 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/x1cut_high_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/x1cut_high_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "x1_range": [-2, 2]},
                    param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
@@ -1031,92 +1039,92 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/x1cut_high_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/x1cut_high_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "x1_range": [-2, 2]},
                    param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0}}),
-            
-            _build("checks/x1cut_high_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "x1_range": [-2, 2]}),
+
+            _build("checks/x1cut_high_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "x1_range": [-2, 2], "model": {**CONFIG["model"], "host_colour": "linear"}}),
 
             # x1 cut high mass linear
-            
-            _build("checks/x1cut_high_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "x1_range": [-2, 2]},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "sn_tau": {"active": True, "fixed": 0.3},
-                                    "gamma": {"active": True, "fixed": 0.0},
-                                    "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/x1cut_high_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
-                                                                                   "x1_range": [-2, 2]},
-                   param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
-                                    "gamma": {"active": True, "fixed": 0.0},
-                                    "c0": {"active": False, "fixed": 0}}),
-
-            _build("checks/x1cut_high_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", }, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/x1cut_high_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "x1_range": [-2, 2]},
                    param_overrides={"gamma_alpha": {"active": True, "fixed": None},
-                                    "gamma": {"active": True, "fixed": 0.0}}),    
-            
+                                    "sn_tau": {"active": True, "fixed": 0.3},
+                                    "gamma": {"active": True, "fixed": 0.0},
+                                    "c0": {"active": False, "fixed": 0}}),
+
+            _build("checks/x1cut_high_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "x1_range": [-2, 2]},
+                   param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
+                                    "gamma": {"active": True, "fixed": 0.0},
+                                    "c0": {"active": False, "fixed": 0}}),
+
+            _build("checks/x1cut_high_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "linear", },
+                                                                                   "registry_file": "run_checks_registry.csv",
+                                                                                   "x1_range": [-2, 2]},
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "gamma": {"active": True, "fixed": 0.0}}),
+
             # x1 cut low mass and ssfr
-            
-            _build("checks/x1cut_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/x1cut_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "x1_range": [-2, 2]},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),            
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/x1cut_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/x1cut_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "x1_range": [-2, 2]},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),  
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/x1cut_low_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/x1cut_low_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "x1_range": [-2, 2]},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),                  
-            
+                                    "eta":   {"active": False, "fixed": 0.0}}),
+
             # c cuts
-            _build("checks/ccut_high_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/ccut_high_gamma_alpha_sncolour_softbrokensntau", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "c_range": [-0.2, 0.2]},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "c0": {"active": False, "fixed": 0}}),
-            
-            _build("checks/ccut_high_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+
+            _build("checks/ccut_high_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "c_range": [-0.2, 0.2]},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
@@ -1125,9 +1133,9 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/ccut_high_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/ccut_high_sncolour_softbrokensntau_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "none", "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "c_range": [-0.2, 0.2]},
                    param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
@@ -1137,78 +1145,78 @@ EXPERIMENTS = [
                                     "eta":   {"active": False, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/ccut_high_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/ccut_high_gamma_alpha_ssfr_tanhF0ftau", config_overrides={"model": {**CONFIG["model"], "mass": "none",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "c_range": [-0.2, 0.2]},
                    param_overrides={"zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": False, "fixed": 0.0},
                                     "eta":   {"active": False, "fixed": 0.0}}),
-            
-            _build("checks/ccut_high_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "c_range": [-0.2, 0.2]}),
+
+            _build("checks/ccut_high_baseline", config_overrides={"registry_file": "run_checks_registry.csv", "c_range": [-0.2, 0.2], "model": {**CONFIG["model"], "host_colour": "linear"}}),
 
             # c cut high mass linear
-            
-            _build("checks/ccut_high_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+
+            _build("checks/ccut_high_gamma_alpha_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "c_range": [-0.2, 0.2]},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/ccut_high_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear"}, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/ccut_high_sncolour_softbrokensntau_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "sn_colour": "softbroken",
+                                                                                                      "mass": "linear"},
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "c_range": [-0.2, 0.2]},
                    param_overrides={"sn_tau": {"active": True, "fixed": 0.3},
                                     "gamma": {"active": True, "fixed": 0.0},
                                     "c0": {"active": False, "fixed": 0}}),
 
-            _build("checks/ccut_high_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", }, 
-                                                                                   "registry_file": "run_checks_registry.csv", 
+            _build("checks/ccut_high_gamma_alpha_mass_linear", config_overrides={"model": {**CONFIG["model"], "host_colour": "linear", "mass": "linear", },
+                                                                                   "registry_file": "run_checks_registry.csv",
                                                                                    "c_range": [-0.2, 0.2]},
                    param_overrides={"gamma_alpha": {"active": True, "fixed": None},
-                                    "gamma": {"active": True, "fixed": 0.0}}),  
+                                    "gamma": {"active": True, "fixed": 0.0}}),
 
             # c cut low mass and ssfr
-            
-            _build("checks/ccut_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+
+            _build("checks/ccut_gamma_alpha_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "c_range": [-0.2, 0.2]},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),            
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/ccut_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken", 
-                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/ccut_sncolour_softbrokensntau_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "sn_colour": "softbroken",
+                                                                                                      "mass": "linear", "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "c_range": [-0.2, 0.2]},
-                   param_overrides={"c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"c0": {"active": False, "fixed": 0},
                                     "sn_tau": {"active": True, "fixed": 0.3},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),  
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
-            _build("checks/ccut_low_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear", 
-                                                                                      "ssfr": "tanh", "host_colour": "none"}, 
+            _build("checks/ccut_low_gamma_alpha_ssfr_tanhF0ftau_mass_linear", config_overrides={"model": {**CONFIG["model"], "mass": "linear",
+                                                                                      "ssfr": "tanh", "host_colour": "none"},
                                                                                    "registry_file": "run_checks_registry.csv", "c_range": [-0.2, 0.2]},
-                   param_overrides={"gamma_alpha": {"active": True, "fixed": None}, 
-                                    "c0": {"active": False, "fixed": 0}, 
+                   param_overrides={"gamma_alpha": {"active": True, "fixed": None},
+                                    "c0": {"active": False, "fixed": 0},
                                     "zeta":  {"active": True, "fixed": 0.0},
                                     "F0":    {"active": True, "fixed": -10.5},
                                     "ftau":  {"active": True, "fixed": 0.5},
                                     "gamma": {"active": True, "fixed": 0.0},
-                                    "eta":   {"active": False, "fixed": 0.0}}),        
+                                    "eta":   {"active": False, "fixed": 0.0}}),
 
             # NOTE: uniform-prior / degeneracy-prescan checks (varying
             # alpha/beta/Om0/M0's prior shape rather than the best model's
@@ -1217,7 +1225,7 @@ EXPERIMENTS = [
             # robustness checks on the chosen best model (this section, the
             # c-cut variants above, etc.) -- see uniform_priors_check.py for
             # the prior-shrinkage/degeneracy-driven uniform-prior reruns.
-    ] 
+    ]
 
 # ===========================================================================
 # HOST MEASUREMENT ERROR SYSTEMATIC CHECK
@@ -1345,12 +1353,12 @@ def _resolve_indices(index_str, n):
         lo, hi = index_str.split("-")
         return list(range(int(lo), int(hi) + 1))
     return [int(index_str)]
- 
+
 def _run_one(args_tuple):
     import time, traceback, sys, os
- 
+
     idx, cfg, log_dir = args_tuple
- 
+
     # ── Belt-and-braces thread clamp ──────────────────────────────────────
     # With spawn mode the module-level env var block (top of file) already
     # runs in every worker before numpy loads, so this is truly redundant.
@@ -1364,7 +1372,7 @@ def _run_one(args_tuple):
         "BLIS_NUM_THREADS",
     ):
         os.environ[var] = "1"
- 
+
     # threadpoolctl guard — catches any BLAS libraries dlopen'd after env vars
     # were read.  Errors are silently swallowed; the env vars above suffice.
     import io
@@ -1380,25 +1388,25 @@ def _run_one(args_tuple):
         os.dup2(_saved_stderr_fd, 2)
         os.close(_saved_stderr_fd)
         os.close(_devnull_fd)
- 
+
     tag = cfg["run_tag"]
     safe_tag = tag.replace("/", "_")
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, f"{safe_tag}.log")
- 
+
     t0 = time.time()
     with open(log_path, "w", buffering=1) as log:   # buffering=1 → line-buffered
         log.write(f"=== [{idx}] {tag} ===\n")
         log.write(f"Started: {datetime.now().isoformat()}\n")
         log.write(f"PID: {os.getpid()}  CPU count: {os.cpu_count()}\n\n")
         log.flush()
- 
+
         # Redirect both stdout and stderr to the log file for this process.
         # dynesty's progress bar and all print() calls from run.py go here.
         old_stdout, old_stderr = sys.stdout, sys.stderr
         sys.stdout = log
         sys.stderr = log
- 
+
         try:
             run_sampler(cfg)
             elapsed = time.time() - t0
@@ -1425,7 +1433,7 @@ def _run_one(args_tuple):
             # even if the log file write above failed.
             print(f"\n[worker {idx}] FAILED: {tb}", file=sys.stderr, flush=True)
             return (idx, tag, "failed", elapsed, tb)
- 
+
 def _parse_args():
     p = argparse.ArgumentParser(description="Run SNe Ia experiment suite")
     p.add_argument("--tag", default=None,
@@ -1484,14 +1492,14 @@ def _parse_args():
                         "experiment's own config. Adds one fit per sky "
                         "cluster found, per selected experiment.")
     return p.parse_args()
- 
+
 def main():
     import os
     from concurrent.futures import ProcessPoolExecutor, as_completed
     from datetime import datetime
- 
+
     args = _parse_args()
- 
+
     # ---- Resolve nlive mode from CLI flags ----
     # --publication / --explore override whatever nlive_mode is stored in each
     # experiment's config.  If neither flag is given, each experiment uses its
@@ -1502,7 +1510,7 @@ def main():
         _cli_mode = "exploratory"
     else:
         _cli_mode = None   # use per-experiment setting
- 
+
     def _nlive_display(cfg):
         """nlive that will be used, for display and summary purposes."""
         if cfg.get("nlive"):
@@ -1510,10 +1518,10 @@ def main():
         mode = _cli_mode or cfg.get("nlive_mode", "exploratory")
         n = sum(1 for s in cfg["param_specs"].values() if s["active"])
         return n * 500 if mode == "publication" else n * 50
- 
+
     # ---- Filter experiments ----
     selected = list(enumerate(EXPERIMENTS))
- 
+
     if args.list:
         mode_label = _cli_mode or "per-experiment"
         print(f"{'idx':>4}  {'tag':<45}  params  nlive  (mode: {mode_label})")
@@ -1522,18 +1530,18 @@ def main():
             n = sum(1 for s in cfg["param_specs"].values() if s["active"])
             print(f"{i:>4}  {cfg['run_tag']:<45}  {n:>6}  {_nlive_display(cfg)}")
         sys.exit(0)
- 
+
     if args.index is not None:
         indices = _resolve_indices(args.index, len(EXPERIMENTS))
         selected = [(i, e) for i, e in selected if i in indices]
- 
+
     if args.tag is not None:
         selected = [(i, e) for i, e in selected if args.tag in e["run_tag"]]
- 
+
     if not selected:
         print("No experiments matched. Use --list to see all available.")
         sys.exit(1)
- 
+
     # ---- Apply CLI nlive_mode override to every selected experiment ----
     # This must happen after filtering so we only mutate the configs that
     # will actually be run.  We deep-copy nothing extra — _build() already
@@ -1542,17 +1550,17 @@ def main():
     if _cli_mode is not None:
         for _, cfg in selected:
             cfg["nlive_mode"] = _cli_mode
- 
+
     n_workers = min(
         args.workers or len(selected),
         os.cpu_count() or 1,
     )
     if args.sequential:
         n_workers = 1
- 
+
     log_dir = args.log_dir
     mode_label = _cli_mode or "per-experiment"
- 
+
     print(f"\n{'='*60}")
     print(f"Experiments : {len(selected)}")
     print(f"nlive mode  : {mode_label}")
@@ -1563,25 +1571,25 @@ def main():
         n = sum(1 for s in cfg["param_specs"].values() if s["active"])
         print(f"  [{i:>2}]  {cfg['run_tag']:<45}  {n} params  nlive={_nlive_display(cfg)}")
     print(f"{'='*60}\n")
- 
+
     if args.dry_run:
         print("Dry run — exiting without sampling.")
         sys.exit(0)
- 
+
     print(f"Logs are written to {os.path.abspath(log_dir)}/<tag>.log")
     print(f"Monitor a run with:  tail -f {log_dir}/<tag>.log\n")
- 
+
     # ---- Master summary log ----
     os.makedirs(log_dir, exist_ok=True)
     summary_path = os.path.join(log_dir, "summary_kerr.log")
     summary = open(summary_path, "w", buffering=1)
     summary.write(f"Run started: {datetime.now().isoformat()}\n")
     summary.write(f"Experiments: {len(selected)}  Workers: {n_workers}  nlive mode: {mode_label}\n\n")
- 
+
     # ---- Dispatch ----
     work = [(i, cfg, log_dir) for i, cfg in selected]
     results = []
- 
+
     if n_workers == 1:
         # Sequential — useful for debugging or single-core servers
         for item in work:
@@ -1608,7 +1616,7 @@ def main():
         # this is completely negligible.
         import multiprocessing as _mp
         _ctx = _mp.get_context("spawn")
- 
+
         with ProcessPoolExecutor(max_workers=n_workers, mp_context=_ctx) as pool:
             futures = {pool.submit(_run_one, item): item[0] for item in work}
             for fut in as_completed(futures):
@@ -1630,7 +1638,7 @@ def main():
                 print(line, end="")
                 summary.write(line)
                 summary.flush()
- 
+
     # ---- Final summary ----
     ok     = [r for r in results if r[2] == "ok"]
     failed = [r for r in results if r[2] == "failed"]
@@ -1642,7 +1650,7 @@ def main():
             first_line = err.strip().splitlines()[-1] if err else "unknown"
             footer += f"  [{idx}] {tag}: {first_line}\n"
     footer += f"{'='*60}\n"
- 
+
     print(footer)
     summary.write(footer)
     summary.close()

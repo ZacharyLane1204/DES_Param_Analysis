@@ -508,20 +508,29 @@ def _format_title(name, mode, err_lo, err_hi, sigfigs=3, flagged=False):
             f"^{{+{err_hi:{fmt}}}}_{{-{err_lo:{fmt}}}}$")
 
 
-def _transform_gaussweight_beta(samples, active_names, data):
+def _transform_gaussweight(samples, active_names, param_specs, raw_data,
+                           amp_name, centre_name, width_name,
+                           amp_label_eff):
     """
-    For the asymm_gauss_weight colour model, replace the raw beta column in
-    the samples array with beta_eff = beta * mean_w, where mean_w is the mean
-    Gaussian weight across the dataset for each posterior sample.
+    General version of the asymm_gauss_weight effective-amplitude
+    transform. Two model families use this exact pattern -- a raw
+    variable multiplied by its own Gaussian weight, w(x) = exp(-0.5 *
+    ((x - centre)/width)^2), which down-weights outlier values and
+    inflates the raw amplitude parameter to compensate:
 
-      w_i(c) = exp(-0.5 * ((c_i - c0) / sn_tau)^2)
-      mean_w  = (1/N) * sum_i w_i(c)
-      beta_eff = beta * mean_w
+      sn_colour_asymm_gauss_weight : amp=beta,  centre=c0,   width=sn_tau, raw=data["c"]
+      x1_correction_asymm_gauss_weight : amp=alpha, centre=x1_0, width=x1_tau, raw=data["x1"]
 
-    beta_eff is the effective mean colour correction amplitude, comparable to
-    beta in the linear model.  Without this transformation, beta in the
-    gaussweight model is inflated because down-weighting outlier colours
-    forces beta up to compensate at typical colours.
+    Replaces the raw amplitude column with amp_eff = amp * mean_w, where
+    mean_w is the mean Gaussian weight across the dataset for each
+    posterior sample. amp_eff is the effective mean correction amplitude,
+    comparable to the same parameter in the plain linear model.
+
+    IMPORTANT: if centre_name/width_name are INACTIVE (fixed), this uses
+    their actual fixed value from param_specs -- not a hardcoded stand-in.
+    Silently assuming width=1.0 for an inactive width parameter previously
+    gave a wrong mean_w (and hence a wrong, HPD-mismatched amp_eff/title)
+    whenever the true fixed width differed from 1.0.
 
     This operates on a COPY of the samples array so the original results
     object is not mutated.
@@ -530,36 +539,44 @@ def _transform_gaussweight_beta(samples, active_names, data):
     ----------
     samples      : ndarray (N_samples, N_params)  — will be copied
     active_names : list of parameter name strings
-    data         : data dict containing data["c"]
+    param_specs  : dict of this run's full param_specs (active + fixed),
+        used to look up the fixed value of centre_name/width_name when
+        either is not in active_names.
+    raw_data     : ndarray (N_sn,)  — the raw variable the weight acts on
+        (data["c"] for beta, data["x1"] for alpha).
+    amp_name, centre_name, width_name : parameter names, e.g.
+        ("beta", "c0", "sn_tau") or ("alpha", "x1_0", "x1_tau").
+    amp_label_eff : LaTeX label string for the transformed axis.
 
     Returns
     -------
-    samples_out  : ndarray (N_samples, N_params)  — beta column replaced
-    label_out    : str  — new LaTeX label for beta axis
+    samples_out  : ndarray (N_samples, N_params)  — amp column replaced
+    label_out    : str  — amp_label_eff, passed straight through
     """
     samples_out = samples.copy()
-    c_data      = data["c"]                              # (N_sn,)
 
-    beta_idx = active_names.index("beta")
-    # c0 and sn_tau may or may not be active; fall back to fixed defaults
-    c0_idx   = active_names.index("c0")   if "c0"     in active_names else None
-    tau_idx  = active_names.index("sn_tau") if "sn_tau" in active_names else None
+    amp_idx = active_names.index(amp_name)
+    centre_idx = active_names.index(centre_name) if centre_name in active_names else None
+    width_idx  = active_names.index(width_name)  if width_name  in active_names else None
 
-    beta_samp = samples_out[:, beta_idx]
-    c0_samp   = samples_out[:, c0_idx]   if c0_idx  is not None else np.zeros(len(samples_out))
-    tau_samp  = samples_out[:, tau_idx]  if tau_idx is not None else np.ones(len(samples_out))
+    amp_samp = samples_out[:, amp_idx]
+    n = len(samples_out)
+    centre_samp = (samples_out[:, centre_idx] if centre_idx is not None
+                   else np.full(n, param_specs[centre_name]["fixed"]))
+    width_samp  = (samples_out[:, width_idx] if width_idx is not None
+                   else np.full(n, param_specs[width_name]["fixed"]))
 
     mean_w = np.array([
-        np.mean(np.exp(-0.5 * ((c_data - c0) / st) ** 2))
-        for c0, st in zip(c0_samp, tau_samp)
+        np.mean(np.exp(-0.5 * ((raw_data - c0) / w) ** 2))
+        for c0, w in zip(centre_samp, width_samp)
     ])
 
-    samples_out[:, beta_idx] = beta_samp * mean_w
-    return samples_out, r"$\beta_{\rm eff}$"
+    samples_out[:, amp_idx] = amp_samp * mean_w
+    return samples_out, amp_label_eff
 
 
 def plot_corner(results, active_names, output_prefix="dynesty_run",
-                labels_override=None, model_cfg=None, data=None):
+                labels_override=None, model_cfg=None, data=None, param_specs=None):
     """
     Corner plot of the posterior using dynesty's built-in plotter.
 
@@ -573,10 +590,22 @@ def plot_corner(results, active_names, output_prefix="dynesty_run",
 
     Special transformations applied before plotting
     ------------------------------------------------
-    asymm_gauss_weight:
+    sn_colour == "asymm_gauss_weight":
         The raw beta is replaced with beta_eff = beta * mean_w (see
-        _transform_gaussweight_beta).  This makes beta comparable to the
+        _transform_gaussweight).  This makes beta comparable to the
         linear model.  The beta axis label changes to β_eff.
+
+    x1_correction == "asymm_gauss_weight":
+        Same transform, applied to alpha instead of beta (alpha_eff =
+        alpha * mean_w over x1's own Gaussian weight). Structurally
+        identical to the sn_colour case -- x1_correction_asymm_gauss_weight
+        down-weights outlier x1 exactly the way sn_colour_asymm_gauss_weight
+        down-weights outlier colour, so alpha needs the same correction
+        beta does. (mass == "gaussian_weight" does NOT need this: unlike
+        the two models above, it does not multiply a raw variable by its
+        own weight -- mass_gaussian_weight IS a bounded antisymmetric
+        shape function in its own right, so gamma is already directly
+        comparable across mass models and is left untransformed.)
 
     sn_colour_dust:
         No transformation needed here — the normalisation at c_ref is
@@ -592,30 +621,43 @@ def plot_corner(results, active_names, output_prefix="dynesty_run",
     labels_override : optional list of LaTeX label strings (overrides PARAM_DISPLAY)
     model_cfg     : model selection dict from config (needed for gaussweight transform)
     data          : data dict (needed for gaussweight transform)
+    param_specs   : this run's full param_specs, active + fixed (needed for
+        the gaussweight transform's centre/width fixed-value fallback --
+        see _transform_gaussweight's docstring for why this must be the
+        run's actual fixed value rather than a hardcoded default).
     """
     samples = results.samples.copy()    # copy so we can transform without mutation
     weights = np.exp(results.logwt - results.logz[-1])
     weights = weights / weights.sum()
     ndim    = len(active_names)
 
-    # ---- Special beta transformation for asymm_gauss_weight ----
+    # ---- Special amplitude transformation for asymm_gauss_weight models ----
     # Must happen before the labels/titles loop so that HPD is computed on
-    # the transformed (comparable) beta_eff, not the raw inflated beta.
-    beta_label_override = None
-    if (model_cfg is not None and data is not None
-            and model_cfg.get("sn_colour") == "asymm_gauss_weight"
-            and "beta" in active_names):
-        samples, beta_label_override = _transform_gaussweight_beta(
-            samples, active_names, data)
+    # the transformed (comparable) amp_eff, not the raw inflated amplitude.
+    eff_label_override = {}   # {param_name: label} for any param transformed below
+    if model_cfg is not None and data is not None and param_specs is not None:
+        if model_cfg.get("sn_colour") == "asymm_gauss_weight" and "beta" in active_names:
+            samples, label = _transform_gaussweight(
+                samples, active_names, param_specs, data["c"],
+                amp_name="beta", centre_name="c0", width_name="sn_tau",
+                amp_label_eff=r"$\beta_{\rm eff}$")
+            eff_label_override["beta"] = label
+        if model_cfg.get("x1_correction") == "asymm_gauss_weight" and "alpha" in active_names:
+            samples, label = _transform_gaussweight(
+                samples, active_names, param_specs, data["x1"],
+                amp_name="alpha", centre_name="x1_0", width_name="x1_tau",
+                amp_label_eff=r"$\alpha_{\rm eff}$")
+            eff_label_override["alpha"] = label
 
     labels  = []
     titles  = []
     hpd_vals = []   # store (mode, err_lo, err_hi) for drawing lines
     for i, name in enumerate(active_names):
         disp  = PARAM_DISPLAY.get(name, {})
-        # Use beta_eff label for gaussweight, otherwise use labels_override or PARAM_DISPLAY
-        if name == "beta" and beta_label_override is not None:
-            label = beta_label_override
+        # Use the _eff label for any gaussweight-transformed param, otherwise
+        # use labels_override or PARAM_DISPLAY
+        if name in eff_label_override:
+            label = eff_label_override[name]
         elif labels_override:
             label = labels_override[i]
         else:
@@ -1638,10 +1680,10 @@ def run_sampler(config, preloaded=None):
     else:
         # Static nested sampler — default behaviour, unchanged from before.
         sampler = NestedSampler(logl, ptform, ndim, nlive=nlive, bound=_bound, sample=_sample)
-        
+
         sampler.run_nested(dlogz=_dlogz, maxiter=config.get("maxiter", None),
                            print_progress=_verbose, print_func=_print_func)
-        
+
         results   = sampler.results
         nlive_used = sampler.results.nlive
 
@@ -1654,11 +1696,11 @@ def run_sampler(config, preloaded=None):
     update_registry(run_name = run_name, config = config, param_specs = param_specs,
                     active_names = active_names, results = results, nlive_used = nlive_used,
                     data = data, inv_cov_mat = inv_cov_mat, model_cfg = model_cfg, cosmo_type = cosmo_type)
-    
+
     # diag = diagnose_modes(results, active_names, param_idx=eta_idx)
 
     plot_corner(results, active_names, output_prefix=output_prefix,
-                model_cfg=model_cfg, data=data)
+                model_cfg=model_cfg, data=data, param_specs=param_specs)
     plot_hubble_diagram(results, active_names, data, param_specs,
                         model_cfg, cosmo_type, output_prefix=output_prefix)
 

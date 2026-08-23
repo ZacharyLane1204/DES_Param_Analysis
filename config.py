@@ -43,11 +43,11 @@ DEFAULT_PARAM_SPECS = {
 
     # ---- SALT2 nuisance ----
     "alpha": {"active": True,  "prior": "truncated_gaussian",
-              "range": [0.04, 0.26], "mu": 0.17, "sigma": 0.06,
+              "range": [0.04, 0.26], "mu": 0.17, "sigma": 0.05,
               "fixed": 0.17},
 
     "beta":  {"active": True,  "prior": "truncated_gaussian",
-              "range": [1.5, 6.5], "mu": 3.12, "sigma": 0.75,
+              "range": [1.5, 6.5], "mu": 3.12, "sigma": 0.5,
               "fixed": 3.12},
 
     "gamma": {"active": True,  "prior": "uniform",
@@ -103,11 +103,11 @@ DEFAULT_PARAM_SPECS = {
 
     # ---- Host galaxy environment ----
     "eta":   {"active": False, "prior": "arcsinh",
-              "range": [-5.0, 5.0], "scale": 0.2,
+              "range": [-5.0, 5.0], "scale": 0.3,
               "fixed": 0.035},
 
     "xi_mass_col":    {"active": False, "prior": "arcsinh",
-              "range": [-5.0, 5.0], "scale": 0.3,
+              "range": [-5.0, 5.0], "scale": 0.5,
               "fixed": 0.0},
 
     "M0":    {"active": False, "prior": "uniform",
@@ -116,22 +116,25 @@ DEFAULT_PARAM_SPECS = {
 
     # Width of the mass-step transition (tanh and sigmoid mass models).
     # Irrelevant for mass="step" (hard cutoff) or mass="none" — fix to default.
-    # Uniform prior over the hard-clip range [0.02, 4.0] — see the config.py
-    # docstring for why every tau/width parameter here is uniform, not
-    # log_normal.
-    "tau":   {"active": False, "prior": "uniform",
-              "range": [0.02, 4.0], 
+    # log_uniform over [0.02, 4.0]: tau is a scale/width parameter, and a
+    # flat-uniform prior on a scale parameter systematically overweights
+    # large widths relative to small ones and piles up posterior mass at
+    # whichever hard edge the data prefer. log_uniform (Jeffreys-style,
+    # flat in log-width) treats "twice as wide" as an equally-sized step
+    # at every scale, which is the right invariance for a width parameter.
+    "tau":   {"active": False, "prior": "log_uniform",
+              "range": [0.02, 4.0],
               "fixed": 0.2},
 
     # SN colour offset / quadratic coefficient (linear, quadratic, broken models)
     "c0":    {"active": False, "prior": "uniform",
               "range": [-2, 3],
-              "fixed": 0.43},
+              "fixed": 0.4},
 
-    # SN colour tanh / softbroken transition width.
-    # Uniform prior over [0.02, 4.0] (tightened from 10.0 -- see config.py
-    # docstring "PRIOR RANGE: tau-family upper bounds" note below for why).
-    "sn_tau": {"active": False, "prior": "uniform",
+    # SN colour tanh / softbroken transition width. log_uniform over
+    # [0.02, 4.0] -- see "tau" above for why width parameters use
+    # log_uniform rather than flat uniform.
+    "sn_tau": {"active": False, "prior": "log_uniform",
                "range": [0.02, 4.0],
                "fixed": 1.0},
 
@@ -141,9 +144,9 @@ DEFAULT_PARAM_SPECS = {
               "fixed": 0.0},
 
     # Width of the host-colour transition (sigmoid / tanh / asymm
-    # host_colour models). Uniform prior over the hard-clip range, same as
-    # every other tau/width parameter in this file (see docstring).
-    "htau":  {"active": False, "prior": "uniform",
+    # host_colour models). log_uniform, same as every other tau/width
+    # parameter in this file (see "tau" above).
+    "htau":  {"active": False, "prior": "log_uniform",
               "range": [0.02, 4.0],
               "fixed": 1},
 
@@ -178,11 +181,10 @@ DEFAULT_PARAM_SPECS = {
               "fixed": 0.0},
 
     # x1_tau: transition width for nonlinear x1 models (tanh, softbroken,
-    #          stepbroken). Uniform prior over [0.05, 4.0] (tightened from
-    #          10.0 -- see "PRIOR RANGE: tau-family upper bounds" note below).
+    #          stepbroken). log_uniform over [0.05, 4.0] -- see "tau" above.
     #          Large x1_tau → linear limit (same as sn_tau for colour).
-    "x1_tau": {"active": False, "prior": "uniform",
-               "range": [0.05, 4.0], 
+    "x1_tau": {"active": False, "prior": "log_uniform",
+               "range": [0.05, 4.0],
                "fixed": 1.0},
 
     # =========================================================================
@@ -193,10 +195,9 @@ DEFAULT_PARAM_SPECS = {
     #     + zeta * F + xi_sSFR_col * F*H + xi_sSFR_mass * F*S + omega * F*S*H
     # where F is the sSFR model profile (analogous to S for mass, H for colour).
     #
-    # zeta:    linear sSFR amplitude (main effect).
-    #          arcsinh prior: fine resolution near zero, log-spaced at large |ζ|.
+
     "zeta":   {"active": False, "prior": "arcsinh",
-               "range": [-5.0, 5.0], "scale": 0.5,
+               "range": [-5.0, 5.0], "scale": 0.3,
                "fixed": 0.0},
 
     # xi_sSFR_col: sSFR × host-colour interaction.
@@ -222,8 +223,9 @@ DEFAULT_PARAM_SPECS = {
               "fixed": -10},
 
     # ftau:  transition width for smooth sSFR models (tanh, sigmoid).
-    #        Uniform prior over [0.05, 4.0].
-    "ftau":  {"active": False, "prior": "uniform",
+    #        log_uniform over [0.05, 4.0] -- see "tau" above for why width
+    #        parameters use log_uniform rather than flat uniform.
+    "ftau":  {"active": False, "prior": "log_uniform",
               "range": [0.05, 4.0],
               "fixed": 0.5},
 }
@@ -312,7 +314,7 @@ CONFIG = {
         "x1_correction":"linear",   # linear | quadratic | tanh | softbroken | stepbroken
         "mass":         "step",     # none   | linear    | step | tanh | sigmoid
                                     # | double_step | gaussian_weight | spline
-        "host_colour":  "linear",   # none   | linear    | quadratic | sigmoid | tanh
+        "host_colour":  "none",     # none   | linear    | quadratic | sigmoid | tanh
                                     # | broken | asymm
         "ssfr":         "none",     # none   | linear    | step | tanh | sigmoid
         "z_evolve":     "power",    # power  | log       | linear | zz | exp | step

@@ -63,8 +63,8 @@ import json
 # instead of silently splitting one category across two spellings.
 # ---------------------------------------------------------------------------
 CATEGORY_PREFIXES = {
-    "baseline", "cosmo", "nuisance", "sn_col_model", "stretch",
-    "host_col_model", "mass", "ssfr", "evolution", "interaction",
+    "baseline", "cosmo", "nuisance", "sncolour", "stretch",
+    "host_col", "mass", "ssfr", "evolution", "interaction",
     "checks", "combo", "uniformcheck", "hosterr",
 }
 
@@ -77,6 +77,41 @@ DEGENERATE_WITH_M = {
     "ssfr":          ("linear", "F0"),
     "sn_colour":     ("linear", "c0"),
     "x1_correction": ("linear", "x1_0"),
+}
+
+
+# ---------------------------------------------------------------------------
+# Parameters that are pure inputs to a single host-environment profile
+# function (mass / host_colour / ssfr) and so become physically meaningless
+# -- not just weakly constrained, but literally multiplied by an
+# identically-zero profile -- whenever that model choice is "none".
+#
+# This generalises the old gamma-specific rule (mass="none" => S=0 =>
+# gamma/2*S=0 for every SN) to the two other host-environment terms and to
+# every cross-term that involves the zeroed profile. From core.py's "Host
+# environment term":
+#     G = gamma/2 * L  +  eta * H       +  xi_mass_col  * L*H
+#       + zeta   * S   +  xi_sSFR_col * S*H  +  xi_sSFR_mass * S*L  +  omega * S*L*H
+# where L = mass profile, H = host-colour profile, S = sSFR profile (see
+# core.py's compute_mu_corr docstring for this naming; note this L/H/S
+# convention is local to that function and differs from the sSFR-section
+# module docstring's F/S naming further up in core.py -- both describe the
+# same three profiles, just with the mass-profile letter swapped).
+#
+# mass="none"        => L=0 for every SN (core.mass_none)
+# host_colour="none"  => H=0 for every SN (core.hcol_none)
+# ssfr="none"          => S=0 for every SN (core.ssfr_none)  [already CONFIG's
+#                          own default -- this branch is exercised constantly]
+#
+# Any parameter below is orphaned (its coefficient multiplies an
+# identically-zero profile) when the corresponding model is "none":
+NONE_MODEL_ORPHANED_PARAMS = {
+    "mass":        ["gamma", "M0", "tau", "M1", "k1", "k2", "k3",
+                    "xi_mass_col", "xi_sSFR_mass", "omega"],
+    "host_colour": ["eta", "C0", "htau",
+                    "xi_mass_col", "xi_sSFR_col", "omega"],
+    "ssfr":        ["zeta", "F0", "ftau",
+                    "xi_sSFR_col", "xi_sSFR_mass", "omega"],
 }
 
 
@@ -203,19 +238,28 @@ class ExperimentRegistry:
 
         param_overrides = dict(param_overrides or {})
 
-        # ---- rule 1: mass="none" => gamma cannot be constrained -------
-        if model.get("mass") == "none":
-            requested = param_overrides.get("gamma", {})
-            if requested.get("active"):
-                raise ValueError(
-                    f"'{tag}': mass='none' means the mass profile S is "
-                    f"zero for every SN (core.mass_none), so gamma cannot "
-                    f"be constrained by the data -- activating it only "
-                    f"burns evidence on an unconstrained parameter. This "
-                    f"combination is never intentional; either drop the "
-                    f"gamma override or use a mass model other than "
-                    f"'none'.")
-            param_overrides["gamma"] = {"active": False, "fixed": 0.0}
+        # ---- rule 1: a "none" host-environment model orphans several
+        #      parameters at once (see NONE_MODEL_ORPHANED_PARAMS above) --
+        #      not just gamma for mass="none", which is all the old version
+        #      of this rule caught. -------------------------------------
+        for model_key, orphaned in NONE_MODEL_ORPHANED_PARAMS.items():
+            if model.get(model_key) != "none":
+                continue
+            for pname in orphaned:
+                requested = param_overrides.get(pname, {})
+                if requested.get("active"):
+                    raise ValueError(
+                        f"'{tag}': {model_key}='none' means that profile is "
+                        f"identically zero for every SN (core.py's "
+                        f"{model_key}_none), so '{pname}' cannot be "
+                        f"constrained by the data -- activating it only "
+                        f"burns evidence on an unconstrained parameter. "
+                        f"This combination is never intentional; either "
+                        f"drop the '{pname}' override or use a "
+                        f"'{model_key}' model other than 'none'.")
+                param_overrides[pname] = {"active": False,
+                                          "fixed": param_overrides.get(pname, {}).get(
+                                              "fixed", 0.0)}
 
         specs = _override(self.base_param_specs, **param_overrides)
 

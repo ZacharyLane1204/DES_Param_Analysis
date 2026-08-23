@@ -142,9 +142,18 @@ def _build_combo_cfg(term_names, registry_file, registry):
     override check _merge_terms() already does above."""
     model_overrides, param_overrides = _merge_terms(term_names)
     tag = _combo_tag(term_names)
+    # "host_colour": "linear" sits between the CONFIG["model"] spread and
+    # **model_overrides so any combo whose own TERMS explicitly set
+    # host_colour (e.g. the "host_colour" term itself) still overrides it --
+    # this is only a fallback for combos that don't touch host_colour at
+    # all, so they keep testing against the same host-colour baseline they
+    # always did rather than silently picking up CONFIG's default (which
+    # is "none" as of this pass, not "linear" -- see config.py).
     return registry.build(tag,
                           param_overrides=param_overrides,
-                          config_overrides={"model": {**CONFIG["model"], **model_overrides},
+                          config_overrides={"model": {**CONFIG["model"],
+                                                      "host_colour": "linear",
+                                                      **model_overrides},
                                             "registry_file": registry_file})
 
 
