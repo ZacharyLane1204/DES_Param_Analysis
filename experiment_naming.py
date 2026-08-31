@@ -46,8 +46,23 @@ remember correctly:
    `build()` below turns those docstrings into an enforced check so the
    mistake can't quietly reappear in a future edit.
 
-Neither rule invents new physics -- both are already documented in
-core.py. This file just makes them impossible to get wrong by accident.
+Neither of the first two rules invents new physics -- both are already
+documented in core.py. This file just makes them impossible to get wrong
+by accident.
+
+3. host_colour != "none" implies eta is sampled, and ssfr != "none"
+   implies zeta is sampled -- always, no exceptions.
+   Earlier revisions of this file let a call site set host_colour (or
+   ssfr) to an active functional form while leaving eta (or zeta) fixed
+   at its baseline value -- included in the model but never actually
+   tested. That distinction turned out to be a footgun in practice (see
+   the accompanying audit notes) and is no longer allowed: if the model
+   says host_colour/ssfr is active, the coefficient that makes it do
+   anything is always free. `build()` below enforces this the same way
+   it enforces rule 1 -- automatically, and loudly if a call site tries
+   to explicitly override it the other way -- so a tag no longer needs
+   (and should not carry) an "eta"/"zeta" fragment to say the term is
+   being tested; "hcol_linear" or "ssfr_step" already says it.
 """
 
 import copy
@@ -112,6 +127,21 @@ NONE_MODEL_ORPHANED_PARAMS = {
                     "xi_mass_col", "xi_sSFR_col", "omega"],
     "ssfr":        ["zeta", "F0", "ftau",
                     "xi_sSFR_col", "xi_sSFR_mass", "omega"],
+}
+
+
+# ---------------------------------------------------------------------------
+# The flip side of NONE_MODEL_ORPHANED_PARAMS: the ONE parameter that makes
+# each host-environment model do anything at all must be sampled whenever
+# that model isn't "none" (see module docstring, rule 3). Unlike the other
+# orphaned parameters above (M0, C0, htau, the xi_* cross-terms, omega --
+# all genuinely optional shape/interaction refinements), eta and zeta ARE
+# the term: host_colour="linear" with eta fixed is not "host colour at a
+# reduced setting", it's host colour not being tested.
+# ---------------------------------------------------------------------------
+ALWAYS_ACTIVE_WITH_MODEL = {
+    "host_colour": "eta",
+    "ssfr":        "zeta",
 }
 
 
@@ -198,7 +228,9 @@ class ExperimentRegistry:
       * activating gamma alongside mass="none" (see module docstring,
         rule 1);
       * activating a shape parameter the model itself makes degenerate
-        with M (see module docstring, rule 2).
+        with M (see module docstring, rule 2);
+      * leaving eta/zeta fixed while host_colour/ssfr is active (see
+        module docstring, rule 3).
 
     Each runner script owns one registry instance built from its own
     base CONFIG/DEFAULT_PARAM_SPECS, and calls `.build(...)` exactly
@@ -260,6 +292,23 @@ class ExperimentRegistry:
                 param_overrides[pname] = {"active": False,
                                           "fixed": param_overrides.get(pname, {}).get(
                                               "fixed", 0.0)}
+
+        # ---- rule 3: eta/zeta must be sampled whenever the corresponding
+        #      model is active -- the inverse of rule 1 (see module
+        #      docstring, rule 3). ------------------------------------
+        for model_key, pname in ALWAYS_ACTIVE_WITH_MODEL.items():
+            if model.get(model_key, "none") == "none":
+                continue
+            requested = param_overrides.get(pname, {})
+            if requested.get("active") is False:
+                raise ValueError(
+                    f"'{tag}': {model_key}='{model[model_key]}' means "
+                    f"'{pname}' is the coefficient that makes that term "
+                    f"nonzero -- it cannot be fixed while the model is "
+                    f"active (see module docstring, rule 3). Either drop "
+                    f"the '{pname}' override, or set {model_key}='none' "
+                    f"if no {model_key} term is genuinely wanted here.")
+            param_overrides[pname] = {**requested, "active": True}
 
         specs = _override(self.base_param_specs, **param_overrides)
 
