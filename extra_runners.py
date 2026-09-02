@@ -1,5 +1,5 @@
 """
-experiment_runner.py  —  SNe Ia Cosmology Pipeline
+extra_runners.py  —  SNe Ia Cosmology Pipeline
 ==============================================
 Define every run variant here as a small dict of overrides on top of the
 base CONFIG / DEFAULT_PARAM_SPECS from config.py.  Then run all of them
@@ -8,21 +8,21 @@ base CONFIG / DEFAULT_PARAM_SPECS from config.py.  Then run all of them
 Usage
 -----
   # Run everything (sequentially)
-  python experiment_runner.py
+  python extra_runners.py
 
   # Run only experiments whose tag matches a pattern
-  python experiment_runner.py --tag flat_lcdm
-  python experiment_runner.py --tag nuisance
+  python extra_runners.py --tag flat_lcdm
+  python extra_runners.py --tag nuisance
 
   # Dry-run: print what would be run without sampling
-  python experiment_runner.py --dry-run
+  python extra_runners.py --dry-run
 
   # Run a single experiment by index (0-based)
-  python experiment_runner.py --index 2
+  python extra_runners.py --index 2
 
   # Run a range of indices (useful for splitting across server jobs)
-  python experiment_runner.py --index 0-9
-  python experiment_runner.py --index 10-19
+  python extra_runners.py --index 0-9
+  python extra_runners.py --index 10-19
 """
 
 import copy
@@ -73,6 +73,7 @@ except Exception:
 from config import CONFIG, DEFAULT_PARAM_SPECS
 from run    import run_sampler, pkl_path_for
 from experiment_naming import ExperimentRegistry
+import best_model
 
 # Post-processing checks (see --degeneracy-scan / --host-quality-check /
 # --loo-zbins / --drilling-cones below) — imported lazily-looking but at
@@ -1260,29 +1261,23 @@ EXPERIMENTS = [
 #       substantially longer than their reference twin.
 #
 # ---------------------------------------------------------------------------
-# EDIT THIS after model_comparison_suite.py has picked the best model.
-# It must describe exactly one model -- the same combination you feed to
-# combo_ablation_checks.py -- so the pairs below are true like-for-like.
+# HOSTERR_BEST is now DERIVED from best_model.BEST_COMBO -- the same
+# combination combo_ablation_checks.py's COMBOS is built from and
+# z_uncertainty_check.py defaults to -- rather than a hand-typed dict, so
+# the pairs below stay true like-for-like with the rest of the pipeline
+# automatically. EDIT best_model.py's BEST_COMBO/TERMS as your best model
+# changes; nothing here needs touching. If a term you need doesn't exist
+# yet in best_model.TERMS, add it there (not here) so combo_ablation_
+# checks.py / uniform_priors_check.py / z_uncertainty_check.py all see it
+# too.
 # ---------------------------------------------------------------------------
+_best_model_overrides, _best_param_overrides = best_model.best_model_overrides()
 HOSTERR_BEST = {
-    "label": "best",
+    "label": best_model.combo_tag(best_model.BEST_COMBO),
     # Model selection (merged on top of CONFIG["model"]).
-    "model": {"sn_colour":   "softbroken",
-              "mass":        "linear",
-              "host_colour": "linear",
-              "ssfr":        "tanh"},
+    "model": _best_model_overrides,
     # Parameter activations for that model.
-    "param_overrides": {
-        "gamma_alpha": {"active": True,  "fixed": None},
-        "c0":          {"active": False, "fixed": 0},
-        "sn_tau":      {"active": True,  "fixed": 0.3},
-        "gamma":       {"active": True,  "fixed": 0.0},
-        "eta":         {"active": True,  "fixed": 0.0},
-        "zeta":        {"active": True,  "fixed": 0.0},
-        "F0":          {"active": True,  "fixed": -10.5},
-        "ftau":        {"active": True,  "fixed": 0.5},
-        "w":           {"active": False, "fixed": -1},
-    },
+    "param_overrides": _best_param_overrides,
 }
 
 _HOSTERR_REGISTRY = "run_checks_registry.csv"

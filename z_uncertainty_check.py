@@ -52,6 +52,7 @@ from dynesty import utils as dyfunc
 from config    import CONFIG
 from run       import load_and_filter_data, run_sampler, pkl_path_for, load_results
 from loo_zbins import _refactorise_covariance
+import best_model
 
 
 def run_z_uncertainty_check(config_overrides=None, n_realizations=8, seed0=2000,
@@ -311,12 +312,31 @@ def _parse_args():
                         "before this check (reproduces the old double-"
                         "counted-against-zHDERR behaviour; default is to "
                         "remove it -- see exclude_muerr_vpec docstring).")
+    p.add_argument("--no-best-model", action="store_true",
+                   help="Fit CONFIG's plain default model instead of "
+                        "best_model.py's BEST_COMBO (the default -- see "
+                        "below). Use this to run the check against the "
+                        "un-corrected baseline model instead of your "
+                        "current best/candidate model.")
     return p.parse_args()
 
 
 if __name__ == "__main__":
     args = _parse_args()
-    run_z_uncertainty_check(config_overrides={"run_tag": args.tag},
+    # Default to the SAME model combo_ablation_checks.py / uniform_priors_
+    # check.py / extra_runners.py's HOSTERR_BEST are built from, via
+    # best_model.py, rather than silently falling back to CONFIG's plain
+    # default model (the previous behaviour -- this CLI never passed a
+    # "model" override at all). Pass --no-best-model to fit the plain
+    # default model instead. Edit best_model.py's BEST_COMBO/TERMS to
+    # change which model this runs, not this file.
+    config_overrides = {"run_tag": args.tag}
+    if not args.no_best_model:
+        _model_overrides, _ = best_model.best_model_overrides()
+        config_overrides["model"] = {**CONFIG["model"], **_model_overrides}
+        config_overrides["param_specs"] = best_model.resolved_best_param_specs()
+
+    run_z_uncertainty_check(config_overrides=config_overrides,
                             n_realizations=args.n_realizations,
                             seed0=args.seed0, zerr_col=args.zerr_col,
                             baseline_pkl=args.baseline_pkl,

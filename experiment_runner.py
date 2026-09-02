@@ -1918,6 +1918,132 @@ del _ssfr_form, _mass_form, _hcol_state, _tag, _hcol_model
 
 
 # ===========================================================================
+# sSFR x HOST-COLOUR GRID, MASS FIXED TO sigmoid WITH M0/tau ACTIVE
+# ===========================================================================
+# Follow-up to the sSFR x MASS x HOST-COLOUR GRID above. That grid crosses
+# mass="sigmoid" against every sSFR/host-colour combination, but always at
+# ITS DEFAULT SHAPE (M0/tau left at their fixed values -- see "mass=
+# 'step'/'sigmoid' leave M0 (and tau, for sigmoid) at their fixed defaults"
+# in that section's docstring, which explicitly defers a free-shape cross
+# to "if a particular combination turns out to matter"). It now does:
+# mass/mass_sigmoid_M0tau (this file, ~line 1761) was the best-performing
+# mass model with M0 AND tau both free, so this section crosses THAT
+# specific shape against the same sSFR x host-colour axes as the grid
+# above, instead of the fixed-shape default.
+#
+# mass is NOT a third axis here (it is pinned to sigmoid/M0tau), so this is
+# 4 (sSFR forms) x 7 (host-colour states) = 28 candidate combinations, each
+# routed through _build() so an accidental duplicate (identical resolved
+# config under a different tag) still raises immediately rather than
+# silently entering the registry twice.
+#
+# Tags reuse _ssfr_grid_tag()'s "ssfr/ssfr_<form>[_F0][_F0ftau]_hcol_<state>
+# _mass_<mass_form>" convention with mass_form="sigmoid_M0tau" -- a label,
+# not an actual config["model"]["mass"] value (that's always "sigmoid") --
+# so every tag here is guaranteed distinct from the fixed-shape grid's
+# "..._mass_sigmoid" tags right next to it.
+# =========================================================================
+
+def _sigmoid_m0tau_grid_param_overrides(ssfr_form, hcol_state):
+    """Same as _ssfr_grid_param_overrides(ssfr_form, mass_form="sigmoid",
+    hcol_state) -- mass="sigmoid" never hits the "spline" k1/k2/k3 branch,
+    so that branch is irrelevant here -- with M0/tau additionally forced
+    active, matching mass/mass_sigmoid_M0tau's own fixed values (M0=10.0,
+    tau=0.2) above."""
+    ov = _ssfr_grid_param_overrides(ssfr_form, "sigmoid", hcol_state)
+    ov["M0"]  = {"active": True, "fixed": 10.0}
+    ov["tau"] = {"active": True, "fixed": 0.2}
+    return ov
+
+
+_sigmoid_m0tau_added, _sigmoid_m0tau_skipped = 0, 0
+for _ssfr_form in _SSFR_GRID_FORMS:
+    for _hcol_state in _HCOL_GRID_STATES:
+        _tag = _ssfr_grid_tag(_ssfr_form, "sigmoid_M0tau", _hcol_state)
+        try:
+            _cfg = _build(
+                _tag,
+                config_overrides={**_REG, "model": _M(
+                    ssfr=_ssfr_form, mass="sigmoid",
+                    host_colour=(_hcol_state if _hcol_state != "none" else "none"))},
+                param_overrides=_sigmoid_m0tau_grid_param_overrides(_ssfr_form, _hcol_state),
+            )
+            EXPERIMENTS.append(_cfg)
+            _sigmoid_m0tau_added += 1
+        except ValueError:
+            # Same reasoning as the grid above: either an exact duplicate
+            # of a hand-written entry, or a degenerate combination the
+            # registry itself rejects. Skip rather than raise.
+            _sigmoid_m0tau_skipped += 1
+
+del _ssfr_form, _hcol_state, _tag
+
+
+# ===========================================================================
+# MASS x HOST-COLOUR GRID, sSFR FIXED TO NOMINAL tanh (zeta ONLY)
+# ===========================================================================
+# Second follow-up to the sSFR x MASS x HOST-COLOUR GRID above. That grid's
+# _ssfr_grid_param_overrides() unconditionally frees F0 (since ssfr !=
+# "linear") and ftau (since ssfr in ("tanh", "sigmoid")) for every tanh/
+# sigmoid row -- so the grid never produces the NOMINAL tanh sSFR term
+# (zeta only, F0 and ftau left at their fixed defaults) crossed against
+# mass/host-colour, the same "F0 fixed, ftau fixed" case the hand-written
+# "-- tanh (1 new param: zeta; F0 fixed, ftau fixed) --" entry above tests,
+# but that entry only pairs it with host_colour="linear", mass="step".
+# This section crosses the SAME nominal-tanh definition against every
+# mass/host-colour combination the main grid uses, so "nominal tanh" gets
+# the same coverage the fully-free tanh variant already has.
+#
+# sSFR is NOT an axis here (always "tanh", nominal), so this is
+# 7 (mass forms) x 7 (host-colour states) = 49 candidate combinations.
+# The one cell that exactly reproduces the hand-written mass_step/hcol_
+# linear entry above (and any other accidental duplicate) is caught by
+# _build()'s duplicate-fingerprint guard and skipped via the same try/
+# except ValueError pattern used throughout this file -- no entries above
+# are edited or removed.
+#
+# Tags reuse _ssfr_grid_tag()'s convention. "tanh" alone (no "_F0ftau"
+# suffix) already means "nominal" in this file's naming -- see the hand-
+# written "ssfr/ssfr_tanh_hcol_linear_mass_step" tag above -- so no new
+# tag fragment is needed to mark the nominal case.
+# =========================================================================
+
+def _ssfr_tanh_nominal_param_overrides(mass_form, hcol_state):
+    """Same as _ssfr_grid_param_overrides("tanh", mass_form, hcol_state)
+    but with F0/ftau forced OFF instead of on, i.e. the nominal-tanh case:
+    only zeta (and, when mass="spline", k1/k2/k3; and, when host_colour is
+    active, eta/C0/htau per the usual hcol rules) is free."""
+    ov = _ssfr_grid_param_overrides("tanh", mass_form, hcol_state)
+    ov["F0"]   = {"active": False, "fixed": -10.5}
+    ov["ftau"] = {"active": False, "fixed": 0.5}
+    return ov
+
+
+def _ssfr_tanh_nominal_tag(mass_form, hcol_state):
+    return f"ssfr/ssfr_tanh_hcol_{hcol_state}_mass_{mass_form}"
+
+
+_tanh_nominal_added, _tanh_nominal_skipped = 0, 0
+for _mass_form in _MASS_GRID_FORMS:
+    for _hcol_state in _HCOL_GRID_STATES:
+        _tag = _ssfr_tanh_nominal_tag(_mass_form, _hcol_state)
+        try:
+            _cfg = _build(
+                _tag,
+                config_overrides={**_REG, "model": _M(
+                    ssfr="tanh", mass=_mass_form,
+                    host_colour=(_hcol_state if _hcol_state != "none" else "none"))},
+                param_overrides=_ssfr_tanh_nominal_param_overrides(_mass_form, _hcol_state),
+            )
+            EXPERIMENTS.append(_cfg)
+            _tanh_nominal_added += 1
+        except ValueError:
+            _tanh_nominal_skipped += 1
+
+del _mass_form, _hcol_state, _tag
+
+
+# ===========================================================================
 # RUNNER
 # ===========================================================================
 

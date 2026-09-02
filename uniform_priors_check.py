@@ -258,78 +258,22 @@ ENTRIES = [
 
 
 # ===========================================================================
-# 2. TERMS  —  named reusable blocks for your chosen best models
-# ===========================================================================
-# EDIT THIS once you have picked your winners from
-# model_comparison_suite.py. Each term is a model-dict fragment plus
-# param_overrides, exactly the format combo_ablation_checks.py's TERMS
-# uses, so a term can be copy-pasted between the two files unchanged.
+# 2 & 3. TERMS + COMBOS  —  now shared with combo_ablation_checks.py,
+# extra_runners.py (HOSTERR_BEST), and z_uncertainty_check.py via
+# best_model.py, so a winning term/combo only needs to be edited in ONE
+# place. Edit TERMS/COMBOS/BEST_COMBO in best_model.py, not here -- a term
+# can still be copy-pasted from/to combo_ablation_checks.py unchanged since
+# both files now read from the exact same TERMS dict.
 #
-# The examples below are the two families this file already tests
-# explicitly; replace or extend them freely. A term whose "model" is {}
-# (pure parameter activation, e.g. an interaction term) is fine.
-TERMS = {
-    "stretch": {
-        "model": {"x1_correction": "doublebroken"},
-        "param_overrides": {"x1_0":   {"active": True},
-                            "x1_tau": {"active": True}},
-    },
-    "sn_colour": {
-        "model": {"sn_colour": "softbroken"},
-        "param_overrides": {"sn_tau": {"active": True, "fixed": 0.3}},
-    },
-}
-
+# [] (the base model with no terms added, i.e. the same fit as ENTRIES'
+# "baseline") is deliberately never a COMBOS entry here, to avoid
+# duplicating that tag -- see best_model.py if you want it as its own row.
 # ===========================================================================
-# 3. COMBOS  —  which TERMS to merge for each run
-# ===========================================================================
-# One entry per run. [] is the base model with no terms added, i.e. the
-# same fit as ENTRIES' "baseline" -- it is NOT included by default to avoid
-# duplicating that tag. Membership is what matters, not order.
-#
-# The default ladder below is the incremental comparison described for the
-# best models: base + stretch, base + sn colour, base + stretch + sn
-# colour, all under identical broad uniform priors so their ln Z values
-# are directly comparable to each other AND to "uniformpriors/baseline".
-COMBOS = [
-    ["stretch"],
-    ["sn_colour"],
-    ["stretch", "sn_colour"],
-]
+from best_model import TERMS, COMBOS, merge_terms as _merge_terms
 
 
 def _combo_tag(term_names):
     return "combo_" + "_".join(term_names) if term_names else "combo_base"
-
-
-def _merge_terms(term_names):
-    """Union the model-dict and param_overrides of every named term.
-
-    Raises on conflict rather than letting one term silently overwrite
-    another: two terms in the same combo setting the same model key or the
-    same param_specs field to DIFFERENT values is almost certainly a
-    mistake in TERMS/COMBOS, and silently keeping the last one would
-    produce a run whose tag does not describe what it fitted.
-    """
-    model_overrides, param_overrides = {}, {}
-    for t in term_names:
-        if t not in TERMS:
-            raise KeyError(f"Unknown term {t!r} in COMBOS; "
-                           f"known terms: {sorted(TERMS)}")
-        term = TERMS[t]
-        for k, v in term.get("model", {}).items():
-            if k in model_overrides and model_overrides[k] != v:
-                raise ValueError(f"Conflicting model['{k}'] between terms in "
-                                 f"combo {term_names}: "
-                                 f"{model_overrides[k]!r} vs {v!r}")
-            model_overrides[k] = v
-        for name, updates in term.get("param_overrides", {}).items():
-            if name in param_overrides and param_overrides[name] != updates:
-                raise ValueError(f"Conflicting param_overrides[{name!r}] "
-                                 f"between terms in combo {term_names}: "
-                                 f"{param_overrides[name]!r} vs {updates!r}")
-            param_overrides[name] = updates
-    return model_overrides, param_overrides
 
 
 def build_combo_entries(combos=None):

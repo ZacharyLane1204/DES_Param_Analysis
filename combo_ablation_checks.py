@@ -69,66 +69,16 @@ import loo_zbins
 import drilling_cones
 
 # ===========================================================================
-# 1. NAMED TERMS  —  edit to match your actual category winners
+# 1 & 2. NAMED TERMS + COMBOS  —  now shared with uniform_priors_check.py,
+# extra_runners.py (HOSTERR_BEST), and z_uncertainty_check.py via
+# best_model.py, so a winning term/combo only needs to be edited in ONE
+# place. Edit TERMS/COMBOS/BEST_COMBO in best_model.py, not here.
 # ===========================================================================
-TERMS = {
-    "interaction": {
-        "model": {},                                              # e.g. {} if no model-family switch needed
-        "param_overrides": {"gamma_alpha": {"active": True, "fixed": None}},
-    },
-    "sn_colour": {
-        "model": {"sn_colour": "softbroken"},
-        "param_overrides": {"sn_tau": {"active": True, "fixed": 0.3}},
-    },
-    "host": {
-        "model": {"mass": "linear"},
-        "param_overrides": {},
-    },
-    "host_colour": {
-        "model": {"host_colour": "tanh"},
-        "param_overrides": {},
-    },
-}
-
-# ===========================================================================
-# 2. COMBOS  —  which TERMS to merge for each ablation entry
-# ===========================================================================
-COMBOS = [
-    ["interaction"],
-    ["interaction", "sn_colour"],
-    ["interaction", "sn_colour", "host"],
-    ["sn_colour", "host"],
-    ["sn_colour"],
-    ["host_colour"],
-]
+from best_model import TERMS, COMBOS, merge_terms as _merge_terms
 
 
 def _combo_tag(term_names):
     return "combo/" + "_".join(term_names)
-
-
-def _merge_terms(term_names):
-    """Union the model-dict and param_overrides-dict of every named term.
-    Raises on conflict rather than letting one term silently overwrite
-    another -- two terms in the same combo both trying to set the same
-    config['model'] key or the same param_specs field to DIFFERENT values
-    is very likely a mistake in TERMS/COMBOS worth catching immediately."""
-    model_overrides, param_overrides = {}, {}
-    for t in term_names:
-        term = TERMS[t]
-        for k, v in term.get("model", {}).items():
-            if k in model_overrides and model_overrides[k] != v:
-                raise ValueError(f"Conflicting model['{k}'] between terms "
-                                 f"in combo {term_names}: "
-                                 f"{model_overrides[k]!r} vs {v!r}")
-            model_overrides[k] = v
-        for name, updates in term.get("param_overrides", {}).items():
-            if name in param_overrides and param_overrides[name] != updates:
-                raise ValueError(f"Conflicting param_overrides['{name}'] "
-                                 f"between terms in combo {term_names}: "
-                                 f"{param_overrides[name]!r} vs {updates!r}")
-            param_overrides[name] = updates
-    return model_overrides, param_overrides
 
 
 def _build_combo_cfg(term_names, registry_file, registry):
