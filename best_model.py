@@ -38,41 +38,69 @@ import copy
 # "model" is {} is fine (e.g. a pure parameter activation like an
 # interaction term).
 TERMS = {
-    "interaction": {
-        "model": {},
-        "param_overrides": {"gamma_alpha": {"active": True, "fixed": None}},
+    # -- sSFR environment profile -------------------------------------------
+    # ssfr="tanh" with zeta (the sSFR amplitude) sampled and F0/ftau held at
+    # their defaults. This is the single largest evidence gain in the whole
+    # publication sweep. Freeing F0/ftau as well is WORSE, not better:
+    #   ssfr_tanh_hcol_none_mass_linear         lnZ = -439.837  (zeta only)
+    #   ssfr_tanh_F0ftau_hcol_none_mass_linear  lnZ = -440.884  (+F0,+ftau)
+    # i.e. the two extra shape parameters cost ~1.05 in Occam factor and buy
+    # nothing, so they stay fixed here.
+    "ssfr_tanh": {
+        "model": {"ssfr": "tanh"},
+        "param_overrides": {"zeta": {"active": True, "fixed": None}},
     },
-    "sn_colour": {
-        "model": {"sn_colour": "softbroken"},
-        "param_overrides": {"sn_tau": {"active": True, "fixed": 0.3}},
-    },
-    "host": {
+
+    # -- Host stellar mass profile ------------------------------------------
+    # mass="linear" replaces the classic hard mass step. gamma is already
+    # active=True in DEFAULT_PARAM_SPECS and serves as this term's amplitude,
+    # so there is nothing to activate here.
+    #   mass/mass_linear   lnZ = -447.335   (dlnZ = +5.44 vs baseline)
+    #   mass/mass_step     lnZ = -456.520   (dlnZ = -3.74)
+    #   mass/mass_none     lnZ = -465.534   (dlnZ = -12.76)
+    # mass_sigmoid_M0tau scores marginally higher alone (-446.952) but needs
+    # two extra parameters for +0.38, which is inside the logZ_err budget --
+    # prefer the cheaper linear form.
+    "mass_linear": {
         "model": {"mass": "linear"},
         "param_overrides": {},
     },
-    "host_colour": {
-        "model": {"host_colour": "tanh"},
-        # eta is host_colour's own amplitude coefficient (arcsinh prior,
-        # DEFAULT_PARAM_SPECS default active=False, fixed=0.035). Left
-        # inactive here previously, so turning on model["host_colour"]
-        # applied the tanh correction at that FIXED 0.035 value without
-        # ever sampling or fitting it -- the ablation wasn't actually
-        # testing this term's amplitude at all. Activate it, same pattern
-        # as "interaction" activating gamma_alpha above.
-        "param_overrides": {"eta": {"active": True, "fixed": None}},
+
+    # -- SN colour law ------------------------------------------------------
+    # Best sn_colour form in the sweep, measured on the OLD baseline
+    # (mass=step, host_colour=linear): dlnZ = +3.54. Whether it survives on
+    # top of ssfr_tanh + mass_linear is exactly what the ladder below tests.
+    # sn_tau is the break width; active=True means the sampler chooses it and
+    # "fixed" is ignored (see config.py's spec docstring).
+    "sncolour_softbroken": {
+        "model": {"sn_colour": "softbroken"},
+        "param_overrides": {"sn_tau": {"active": True, "fixed": None}},
     },
-    # Add new terms here as they're picked, e.g.:
-    # "mass_sigmoid_M0tau": {
-    #     "model": {"mass": "sigmoid"},
-    #     "param_overrides": {"M0": {"active": True, "fixed": 10.0},
-    #                         "tau": {"active": True, "fixed": 0.2}},
-    # },
-    # "ssfr_tanh_nominal": {
-    #     "model": {"ssfr": "tanh"},
-    #     "param_overrides": {"zeta": {"active": True, "fixed": 0.0},
-    #                         "F0":   {"active": False, "fixed": -10.5},
-    #                         "ftau": {"active": False, "fixed": 0.5}},
-    # },
+
+    # -- gamma x alpha interaction ------------------------------------------
+    # Best interaction term in the sweep: dlnZ = +2.02 on the old baseline.
+    # Every other interaction (beta_gamma, beta_alpha, the three-way) is
+    # DISFAVOURED. Again, measured pre-ssfr -- the ladder re-tests it.
+    "interaction_gammaalpha": {
+        "model": {},
+        "param_overrides": {"gamma_alpha": {"active": True, "fixed": None}},
+    },
+
+    # -- Host colour profile (falsification control) ------------------------
+    # Included so the ladder can DISPROVE it rather than silently omit it.
+    # eta is host_colour's amplitude and C0 its centre; both default to
+    # active=False with a non-zero "fixed", so turning on model["host_colour"]
+    # without activating them applies an UNFITTED correction the sampler never
+    # sees. Activate both, the same way "interaction_gammaalpha" activates
+    # gamma_alpha.
+    # Expectation from the sweep: this term is not wanted --
+    #   ssfr_tanh_hcol_none_mass_linear  lnZ = -439.837
+    #   ssfr_tanh_hcol_tanh_mass_linear  lnZ = -439.978  (2 more params, worse)
+    "host_colour_tanh": {
+        "model": {"host_colour": "tanh"},
+        "param_overrides": {"eta": {"active": True, "fixed": None},
+                            "C0":  {"active": True, "fixed": None}},
+    },
 }
 
 # ===========================================================================
@@ -81,13 +109,28 @@ TERMS = {
 # ===========================================================================
 # Any subset of TERMS.keys() is valid; list order doesn't matter, only
 # membership.
+#
+# The ladder is built so that entry [1] -- ssfr_tanh + mass_linear, the
+# publication sweep's outright winner at dlnZ = +12.94 -- is the REFERENCE,
+# and entries [2]..[5] each add exactly ONE further term to it. That makes
+# every delta a clean one-term test against the current champion rather than
+# against the old baseline, which is the only way to find out whether
+# sncolour_softbroken (+3.54) and interaction_gammaalpha (+2.02) still pay
+# for themselves once the sSFR and mass terms have already absorbed most of
+# the host correlation.
+#
+# Six entries is deliberate: combo_ablation_checks.py runs a fit PLUS a LOO
+# z-bin CV (n_bins refits), a strict-host-match refit and a drilling-cones
+# refit per cone for EVERY entry, so each line here is of order ten nested
+# sampling runs, not one.
 COMBOS = [
-    ["interaction"],
-    ["interaction", "sn_colour"],
-    ["interaction", "sn_colour", "host"],
-    ["sn_colour", "host"],
-    ["sn_colour"],
-    ["host_colour"],
+    ["mass_linear"],                                                  # floor
+    ["mass_linear", "ssfr_tanh"],                                     # REFERENCE
+    ["mass_linear", "ssfr_tanh", "sncolour_softbroken"],              # +colour
+    ["mass_linear", "ssfr_tanh", "interaction_gammaalpha"],           # +interaction
+    ["mass_linear", "ssfr_tanh", "sncolour_softbroken",
+     "interaction_gammaalpha"],                                       # full combo
+    ["mass_linear", "ssfr_tanh", "host_colour_tanh"],                 # falsification
 ]
 
 # ===========================================================================
@@ -96,7 +139,15 @@ COMBOS = [
 # EDIT THIS as your best model changes. extra_runners.py's HOSTERR_BEST and
 # z_uncertainty_check.py's default model are both derived from this list
 # via merge_terms() below -- updating it here updates both automatically.
-BEST_COMBO = ["interaction", "sn_colour", "host"]
+#
+# Set to the publication sweep's outright winner
+# (ssfr/ssfr_tanh_hcol_none_mass_linear, lnZ = -439.837, dlnZ = +12.94 over
+# baseline, and the best of all 485 runs). Once combo_ablation_checks.py has
+# reported, promote the winning ladder entry here -- e.g. append
+# "sncolour_softbroken" and/or "interaction_gammaalpha" IF and ONLY IF their
+# ladder entry beats ["mass_linear", "ssfr_tanh"] by more than the combined
+# logZ_err (~0.1, so require dlnZ > ~1 to be worth the extra parameter).
+BEST_COMBO = ["mass_linear", "ssfr_tanh"]
 
 
 def merge_terms(term_names, terms=None):

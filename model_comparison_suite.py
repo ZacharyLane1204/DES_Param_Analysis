@@ -57,34 +57,82 @@ BASELINE_PKL = "Plots/baseline_results.pkl"
 # category -> ordered list of (label, pkl_path), BEST FIRST. Only the
 # first two entries are used for "winner vs runner-up"; only the first
 # three (plus baseline) go into the shortlist tension_matrix grid.
+#
+# Paths follow run.pkl_path_for(): "<output_dir>/<dirname(run_name)>/
+# <basename(run_name)>_results.pkl", with output_dir="Plots". They are
+# therefore the registry's run_name verbatim, NOT a hand-invented subdir.
+# Every entry below was taken from run_publication_registry.csv and its
+# lnZ is quoted so the ordering is auditable; baseline lnZ = -452.777.
 CATEGORY_SHORTLISTS = {
-    "sn_colour": [
-        ("softbroken_sntau", "Plots/sn_col_model/sncolour_softbroken_sntau_results.pkl"),
-        ("tanh_c0_sntau",    "Plots/sn_col_model/sncolour_tanh_c0_sntau_results.pkl"),
-    ],
-    "host_colour": [
-        ("tanh_mass_step",  "Plots/host_col_model/host_colour_tanh_mass_step_results.pkl"),
+    # -439.837 is the best run in the entire 485-run sweep.
+    "host_sSFR": [
+        ("ssfr_tanh_mass_linear",
+         "Plots/ssfr/ssfr_tanh_hcol_none_mass_linear_results.pkl"),        # -439.837
+        ("ssfr_tanh_F0ftau_mass_linear",
+         "Plots/ssfr/ssfr_tanh_F0ftau_hcol_none_mass_linear_results.pkl"), # -440.884
+        ("ssfr_step_F0_mass_linear",
+         "Plots/ssfr/ssfr_step_F0_hcol_none_mass_linear_results.pkl"),     # -441.937
     ],
     "host_mass": [
-        ("mass_linear",     "Plots/mass/mass_linear_results.pkl"),
+        ("mass_sigmoid_M0tau", "Plots/mass/mass_sigmoid_M0tau_results.pkl"),  # -446.952
+        ("mass_linear",        "Plots/mass/mass_linear_results.pkl"),         # -447.335
+        ("mass_tanh_M0tau",    "Plots/mass/mass_tanh_M0tau_results.pkl"),     # -447.402
     ],
-    "host_sSFR": [
-        ("ssfr_tanh_F0ftau", "Plots/ssfr/ssfr_tanh_F0ftau_results.pkl"),
-    ],
-    "z_evolve": [
-        ("gamma_z_power",   "Plots/evolution/gamma_z_power_results.pkl"),
-    ],
-    "stretch": [
-        ("stretch_softbroken_x1tau", "Plots/stretch/stretch_softbroken_x1tau_results.pkl"),
+    "sn_colour": [
+        ("softbroken_sntau",
+         "Plots/sncolour/sncolour_softbroken_sntau_results.pkl"),  # -449.234
+        ("quadratic_c0",
+         "Plots/sncolour/sncolour_quadratic_c0_results.pkl"),      # -450.291
+        ("stepbroken_sntau",
+         "Plots/sncolour/sncolour_stepbroken_sntau_results.pkl"),  # -450.758
     ],
     "interaction": [
-        ("gamma_alpha",     "Plots/interaction/gamma_alpha_results.pkl"),
+        ("gamma_alpha",
+         "Plots/interaction/interaction_gammaalpha_results.pkl"),  # -450.762
+        ("beta_gamma",
+         "Plots/interaction/interaction_betagamma_results.pkl"),   # -453.705 (disfavoured)
+    ],
+    "host_colour": [
+        ("hcol_sigmoid_C0_mass_linear",
+         "Plots/host_col/ssfr_none_hcol_sigmoid_C0_mass_linear_results.pkl"),    # -446.154
+        ("hcol_quadratic_C0_mass_linear",
+         "Plots/host_col/ssfr_none_hcol_quadratic_C0_mass_linear_results.pkl"),  # -446.642
+        ("hcol_tanh_C0_mass_linear",
+         "Plots/host_col/ssfr_none_hcol_tanh_C0_mass_linear_results.pkl"),       # -446.894
+    ],
+    # Stretch is a NULL result: the best x1 form is +0.05 on baseline, i.e.
+    # indistinguishable. Kept so the null is documented, not hidden.
+    # NOTE: every stretch/*_x1tau run in the current registry predates the
+    # core.py x1_tau parameter-name fix and must be re-run before use.
+    "stretch": [
+        ("stepbroken_x10x1tau",
+         "Plots/stretch/stretch_stepbroken_x10x1tau_results.pkl"),  # -452.730
+        ("doublebroken",
+         "Plots/stretch/stretch_doublebroken_results.pkl"),         # -452.765
     ],
 }
 
-# The combined "everything that won" model -- produced separately (e.g. the
-# fullest entry in combo_ablation_checks.py's COMBOS, or your own final fit).
-COMBINED_PKL = "Plots/combo/interaction_sn_colour_host_results.pkl"
+# Redshift evolution is deliberately NOT in CATEGORY_SHORTLISTS: those runs
+# use broad-uniform alpha/beta priors and must be differenced against
+# evolution/baseline_broaduniform (lnZ = -456.123), never against the
+# informative-prior baseline above (see README, "Prior sensitivity"). Every
+# zevolve_* run scores BELOW that matched reference -- the best,
+# evolution/zevolve_log_g at -456.710, is 0.59 worse -- so there is no
+# evidence for redshift evolution of alpha, beta or gamma, and there is no
+# "winner" to shortlist.
+Z_EVOLVE_REFERENCE_PKL = "Plots/evolution/baseline_broaduniform_results.pkl"
+
+# The combined "everything that won" model -- produced by
+# combo_ablation_checks.py, whose tags are "combo/<terms joined by _>" in
+# best_model.COMBOS order. This must match the ladder entry you actually
+# want to headline; it defaults to best_model.BEST_COMBO so it stays in
+# sync when you promote a new winner there.
+try:
+    import best_model as _best_model
+    COMBINED_PKL = ("Plots/combo/"
+                    + "_".join(_best_model.BEST_COMBO) + "_results.pkl")
+except Exception:      # best_model.py absent/misconfigured -- fall back
+    COMBINED_PKL = "Plots/combo/mass_linear_ssfr_tanh_results.pkl"
 
 # category -> pkl for "combined vs. each individual winner". Defaults to
 # each category's [0] shortlist entry, but kept separate/explicit in case

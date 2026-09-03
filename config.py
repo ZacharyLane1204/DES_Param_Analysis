@@ -445,10 +445,10 @@ CONFIG = {
     # ---- Sampler settings ----
     # nlive autoscaling (used when "nlive" is None):
     #   "exploratory"  → total_active_params * 50   (fast, for new model testing)
-    #   "publication"  → total_active_params * 300  (your original formula)
+    #   "publication"  → total_active_params * 500  (see run.py's nlive block)
     # e.g. baseline (alpha, beta, gamma, Om0) = 4 params:
     #   exploratory → 200 live points
-    #   publication → 1200 live points
+    #   publication → 2000 live points
     # Set "nlive" to an explicit integer to override autoscaling entirely.
     "nlive":      None,
     "nlive_mode": "publication",  # "exploratory" | "publication"

@@ -738,7 +738,7 @@ def ssfr_linear(logsSFR, F0=-10.5, ftau=0.5, **_):
     Fix F0 or leave inactive when using ssfr_linear.
     NaN → 0.
     """
-    F = logsSFR
+    F = logsSFR - F0
     return np.where(np.isfinite(F), F, 0.0)
 
 def ssfr_step(logsSFR, F0=-10.5, ftau=0.5, **_):
@@ -1091,7 +1091,7 @@ def compute_mu_corr(data, params, model_cfg, return_var=False):
     k3          = params.get("k3",     0.0)
     # x1 correction
     x1_0        = params.get("x1_0",   0.0)
-    x1_tau      = params.get("x1tau", 1.0)
+    x1_tau      = params.get("x1_tau", 1.0)
     # sSFR host term
     zeta        = params.get("zeta",         0.0)
     xi_sSFR_col  = params.get("xi_sSFR_col",  0.0)

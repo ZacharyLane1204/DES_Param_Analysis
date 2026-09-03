@@ -92,17 +92,21 @@ def _build_combo_cfg(term_names, registry_file, registry):
     override check _merge_terms() already does above."""
     model_overrides, param_overrides = _merge_terms(term_names)
     tag = _combo_tag(term_names)
-    # "host_colour": "linear" sits between the CONFIG["model"] spread and
-    # **model_overrides so any combo whose own TERMS explicitly set
-    # host_colour (e.g. the "host_colour" term itself) still overrides it --
-    # this is only a fallback for combos that don't touch host_colour at
-    # all, so they keep testing against the same host-colour baseline they
-    # always did rather than silently picking up CONFIG's default (which
-    # is "none" as of this pass, not "linear" -- see config.py).
+    # NOTE: no host_colour fallback is injected here. A previous version
+    # forced "host_colour": "linear" for every combo that did not name it
+    # explicitly. Because eta (host_colour's amplitude) defaults to
+    # active=False, fixed=0.035, that applied an UNFITTED +0.035*HOST_COLOR
+    # mag correction to every combo -- a correction the sampler never saw
+    # and the Occam factor never paid for, contaminating every ablation
+    # delta. The publication sweep also shows host_colour is not wanted:
+    # ssfr_tanh_hcol_none_mass_linear (lnZ -439.837) beats
+    # ssfr_tanh_hcol_tanh_mass_linear (-439.978) despite the latter having
+    # two extra free parameters. Combos that do not name host_colour now
+    # inherit CONFIG["model"]["host_colour"] ("none"), and a combo that
+    # wants it must say so via a TERMS entry that ALSO activates eta.
     return registry.build(tag,
                           param_overrides=param_overrides,
                           config_overrides={"model": {**CONFIG["model"],
-                                                      "host_colour": "linear",
                                                       **model_overrides},
                                             "registry_file": registry_file})
 
