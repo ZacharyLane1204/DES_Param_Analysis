@@ -215,17 +215,6 @@ UNIFORM_PRIORS = {
     # considers, not because they change anything.
     "M0":     {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["M0"]["range"]},
     "F0":     {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["F0"]["range"]},
-    # ---- Term-AMPLITUDE coefficients (arcsinh by default) --------------
-    # gamma_alpha/zeta/eta are the parameters that answer "does this term
-    # exist at all" for the interaction, ssfr, and host_colour terms
-    # respectively -- as opposed to tau/ftau/M0/F0 above, which only shape
-    # an already-active term. All three default to an informative
-    # arcsinh(scale=...) prior in DEFAULT_PARAM_SPECS. Only add
-    # xi_mass_col/omega/beta_alpha/beta_gamma here too if a TERMS entry
-    # actually activates them.
-    "gamma_alpha": {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["gamma_alpha"]["range"]},
-    "zeta":        {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["zeta"]["range"]},
-    "eta":         {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["eta"]["range"]},
 }
 
 # Always uniformised, whether active or not: these are the parameters the
