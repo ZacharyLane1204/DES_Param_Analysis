@@ -30,6 +30,11 @@ into, skipped against, or deduped with them:
   output_dir     uniform_checks/                       (corner plots, pkls)
   registry_file  run_publication_registry_uniform.csv
   summary        uniform_priors_check_summary.csv
+  logs           logs/<tag>.log  (per-entry, same convention as
+                 extra_runners.py) + logs/uniformpriors_summary.log
+                 (one line per entry, kept separate from extra_runners.py's
+                 own logs/summary_kerr.log so a parallel run of both
+                 scripts never clobbers the other's master log)
 
 CRITICAL -- ln Z from this registry is NOT comparable to ln Z in
 run_publication_registry.csv. Widening a prior always costs evidence
@@ -73,8 +78,27 @@ deliberately KEEPS its informative CMB prior -- see the comment on
 UNIFORM_PRIORS for why freeing it would defeat the purpose of the check.
 Shape parameters that are active in a given entry (x1_tau, sn_tau, tau,
 htau, ftau, M0, F0) are widened too, but only where the entry actually
-samples them -- see _uniformise(). Parameters that are already uniform by
-default (gamma, c0, C0, x1_0) need no override.
+samples them -- see _uniformise(). The same applies to the term-AMPLITUDE
+coefficients (gamma_alpha, zeta, eta), which are the parameters that
+answer "does this term exist at all" for interaction/ssfr/host_colour
+respectively, as opposed to the shape parameters above which only shape
+an already-active term. Parameters that are already uniform by default
+(gamma, c0, C0, M0, F0, x1_0) need no override; entries for them are kept
+anyway as a complete, self-documenting record.
+
+Running in parallel
+--------------------
+Same model as extra_runners.py: a ProcessPoolExecutor of worker
+processes, each running exactly one entry through run_sampler with its
+own thread pool clamped to 1 (so `--workers K` consumes exactly K cores
+total, not K x whatever BLAS would otherwise grab per process). Every
+entry's full run_sampler output -- setup banners, dynesty progress,
+warnings, evidence summary -- goes to its own logs/<tag>.log; only a
+one-line completion status prints to the console per entry, plus a
+master logs/uniformpriors_summary.log. This applies whether you pass
+--workers or not (the default runs one worker per selected entry, capped
+at os.cpu_count()) and even under --sequential -- every real (non-dry-run)
+invocation always logs to files, matching extra_runners.py's convention.
 
 Usage
 -----
@@ -85,13 +109,51 @@ Usage
   python uniform_priors_check.py --combos-only
   python uniform_priors_check.py --dry-run
 
+  # Parallel, capped at 4 workers, deprioritised:
+  nice -n 19 python uniform_priors_check.py --combos-only --workers 4
+
+  # Force one at a time (debugging) -- still logs to logs/<tag>.log:
+  python uniform_priors_check.py --combos-only --sequential
+
 or:
   from uniform_priors_check import run_uniform_priors_check
-  report = run_uniform_priors_check()
+  report = run_uniform_priors_check(workers=4)
 """
 
 import argparse
 import copy
+import sys
+import os
+import time
+import traceback
+from datetime import datetime
+
+# ===========================================================================
+# THREAD CLAMPING  —  must happen BEFORE any numerical library is imported
+# ===========================================================================
+# Same rationale as extra_runners.py's identical block: NumPy / OpenBLAS /
+# MKL / OMP read their thread-count env vars at import time, not at call
+# time, and pandas (imported just below) already pulls numpy in -- so this
+# has to run before even that import, not just before `from config import
+# ...`. With this in place each worker process (spawned, not forked -- see
+# the ProcessPoolExecutor call below) uses exactly 1 CPU thread, so
+# `--workers K` consumes exactly K cores total.
+for _var in (
+    "OMP_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "VECLIB_MAXIMUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+    "BLIS_NUM_THREADS",
+):
+    os.environ[_var] = "1"
+
+try:
+    from threadpoolctl import threadpool_limits as _tpl
+    _tpl(1)
+except Exception:
+    pass  # threadpoolctl not installed or broken — env vars above are sufficient
+# ===========================================================================
 
 import pandas as pd
 
@@ -132,29 +194,38 @@ TAG_PREFIX    = "uniformpriors"
 # prior-dominated in these runs. That is the intended state, not a defect
 # -- Om0 is not in the prior_overrides column precisely because it was
 # never overridden.
-#
-# The remaining entries are shape parameters whose defaults are log_normal
-# or truncated_gaussian -- informative by construction. They are applied
-# ONLY when the entry being built actually samples them (see _uniformise),
-# because overriding the prior of an inactive parameter is a no-op that
-# just makes the resulting spec harder to read.
 UNIFORM_PRIORS = {
     # SALT3 standardisation coefficients (truncated_gaussian by default).
     # Om0 is intentionally absent -- see the block comment above.
     "alpha":  {"prior": "uniform", "range": [0.0, 0.5]},
     "beta":   {"prior": "uniform", "range": [0.0, 8.0]},
-    # Shape / width parameters (log_normal or truncated_gaussian by default).
-    # Ranges are each parameter's own existing hard clip -- these already
-    # span orders of magnitude, so the informative part of these priors is
-    # the SHAPE, not the support, and widening the support further would
-    # only add Occam penalty without adding reachable models.
+    # Shape / width parameters (log_uniform by default -- already fairly
+    # uninformative on SUPPORT, spanning orders of magnitude, but their
+    # SHAPE (log density) is still informative; these swap that shape to
+    # flat uniform over the same existing hard range).
     "x1_tau": {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["x1_tau"]["range"]},
     "sn_tau": {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["sn_tau"]["range"]},
     "tau":    {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["tau"]["range"]},
     "htau":   {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["htau"]["range"]},
     "ftau":   {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["ftau"]["range"]},
+    # M0/F0 are already "uniform" by default in DEFAULT_PARAM_SPECS -- these
+    # two entries are a no-op restating the existing prior. Left in
+    # deliberately (rather than dropped) so this dict is a complete,
+    # self-documenting record of every shape/width parameter the check
+    # considers, not because they change anything.
     "M0":     {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["M0"]["range"]},
     "F0":     {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["F0"]["range"]},
+    # ---- Term-AMPLITUDE coefficients (arcsinh by default) --------------
+    # gamma_alpha/zeta/eta are the parameters that answer "does this term
+    # exist at all" for the interaction, ssfr, and host_colour terms
+    # respectively -- as opposed to tau/ftau/M0/F0 above, which only shape
+    # an already-active term. All three default to an informative
+    # arcsinh(scale=...) prior in DEFAULT_PARAM_SPECS. Only add
+    # xi_mass_col/omega/beta_alpha/beta_gamma here too if a TERMS entry
+    # actually activates them.
+    "gamma_alpha": {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["gamma_alpha"]["range"]},
+    "zeta":        {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["zeta"]["range"]},
+    "eta":         {"prior": "uniform", "range": DEFAULT_PARAM_SPECS["eta"]["range"]},
 }
 
 # Always uniformised, whether active or not: these are the parameters the
@@ -313,21 +384,127 @@ def all_entries(include_entries=True, include_combos=True):
     return entries
 
 
+# ===========================================================================
+# PARALLEL WORKER  —  same pattern as extra_runners.py's _run_one, so a
+# parallel uniform_priors_check.py run behaves and logs identically to a
+# parallel extra_runners.py run: one entry per worker process, its own
+# thread pool clamped to 1, full run_sampler output redirected to its own
+# logs/<tag>.log, BaseException caught so one failed entry never takes
+# down the batch or the parent process.
+# ===========================================================================
+
+def _run_one(args_tuple):
+    """Run a single entry's fit in an isolated (spawned) worker process.
+
+    Returns (idx, tag, status, elapsed, pkl_path, error_traceback).
+    status is "ok" or "failed"; pkl_path is "" on failure.
+    """
+    idx, cfg, log_dir = args_tuple
+
+    # Belt-and-braces thread clamp — with spawn mode the module-level env
+    # var block (top of file) already runs in every worker before numpy
+    # loads, so this is truly redundant. Kept only for safety if _run_one
+    # is ever called outside the pool.
+    for var in (
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+        "BLIS_NUM_THREADS",
+    ):
+        os.environ[var] = "1"
+
+    # threadpoolctl guard — catches any BLAS libraries dlopen'd after env
+    # vars were read. Errors are silently swallowed; the env vars above
+    # suffice.
+    _devnull_fd = os.open(os.devnull, os.O_WRONLY)
+    _saved_stderr_fd = os.dup(2)
+    os.dup2(_devnull_fd, 2)
+    try:
+        from threadpoolctl import threadpool_limits
+        threadpool_limits(1)
+    except Exception:
+        pass
+    finally:
+        os.dup2(_saved_stderr_fd, 2)
+        os.close(_saved_stderr_fd)
+        os.close(_devnull_fd)
+
+    tag = cfg["run_tag"]
+    safe_tag = tag.replace("/", "_")
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, f"{safe_tag}.log")
+
+    t0 = time.time()
+    with open(log_path, "w", buffering=1) as log:   # buffering=1 → line-buffered
+        log.write(f"=== [{idx}] {tag} ===\n")
+        log.write(f"Started: {datetime.now().isoformat()}\n")
+        log.write(f"PID: {os.getpid()}  CPU count: {os.cpu_count()}\n\n")
+        log.flush()
+
+        # Redirect both stdout and stderr to the log file for this entry —
+        # dynesty's progress bar and all print() calls from run.py go here.
+        old_stdout, old_stderr = sys.stdout, sys.stderr
+        sys.stdout = log
+        sys.stderr = log
+
+        try:
+            results, sampler, active_names, data, run_name = run_sampler(cfg)
+            pkl_path = pkl_path_for(run_name, cfg)
+            elapsed = time.time() - t0
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            log.write(f"\n=== DONE in {elapsed:.1f}s ===\n")
+            return (idx, tag, "ok", elapsed, pkl_path, "")
+        except BaseException:
+            # BaseException (not just Exception) catches MemoryError,
+            # KeyboardInterrupt, and system signals that would otherwise
+            # silently kill the worker and surface only as
+            # BrokenProcessPool in the parent.
+            elapsed = time.time() - t0
+            tb = traceback.format_exc()
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            try:
+                log.write(f"\n=== FAILED after {elapsed:.1f}s ===\n{tb}\n")
+                log.flush()
+            except Exception:
+                pass
+            print(f"\n[worker {idx}] FAILED: {tb}", file=sys.stderr, flush=True)
+            return (idx, tag, "failed", elapsed, "", tb)
+
+
 def run_uniform_priors_check(only=None, dry_run=False, include_entries=True,
-                             include_combos=True):
+                             include_combos=True, workers=None,
+                             log_dir="logs", sequential=False):
     """
     Parameters
     ----------
     only    : optional iterable of bare tags (without the
         "uniformpriors/" prefix, e.g. "baseline,stretch_powerlaw") to
         restrict to.
-    dry_run : print what would run without sampling.
+    dry_run : print what would run without sampling. Ignores workers/
+        log_dir/sequential entirely -- nothing is dispatched or logged.
     include_entries / include_combos : run only one of the two sources.
+    workers : max parallel worker processes (default: number of selected
+        entries, capped at os.cpu_count()). Each worker uses exactly 1
+        CPU thread (see the module-level thread-clamping block), so
+        `workers=K` consumes exactly K cores total.
+    log_dir : directory for per-entry log files (default "logs/", same
+        convention as extra_runners.py). Every entry's full run_sampler
+        output goes to "<log_dir>/<tag with / -> _>.log"; only a one-line
+        completion status prints to the console. Applies whenever
+        dry_run=False, regardless of workers/sequential.
+    sequential : force workers=1 regardless of `workers` (useful for
+        debugging -- still logs to log_dir/<tag>.log, just one at a time).
 
     Returns
     -------
-    pandas.DataFrame, one row per entry: run_tag, pkl_path, active_params,
-    uniform_params. Also saved to SUMMARY_FILE.
+    pandas.DataFrame, one row per entry: run_tag, status, elapsed_s,
+    pkl_path, active_params, uniform_params. Also saved to SUMMARY_FILE.
+    (dry_run=True omits status/elapsed_s and sets pkl_path="(dry-run)",
+    matching the previous dry-run report shape.)
 
     Cross-reference each row's parameter estimates against its
     informative-prior counterpart in run_publication_registry.csv with
@@ -344,37 +521,138 @@ def run_uniform_priors_check(only=None, dry_run=False, include_entries=True,
             raise SystemExit("No entries matched --only. "
                              "Use --list to see the available tags.")
 
-    rows = []
+    # ---- Manifest: active/uniformised params for every selected entry,
+    # printed up front regardless of dry_run (cheap -- no sampling). This
+    # is exactly what --dry-run has always shown; for a real run it also
+    # doubles as your pre-flight check that the right parameters get
+    # uniformised before any compute is spent (see UNIFORM_PRIORS'
+    # module-docstring note on gamma_alpha/zeta/eta). ----
+    manifest = {}
     for cfg in entries:
         active  = [n for n, s in cfg["param_specs"].items() if s["active"]]
         uniform = [n for n in active
                    if cfg["param_specs"][n].get("prior")
                    != DEFAULT_PARAM_SPECS[n].get("prior")]
+        manifest[cfg["run_tag"]] = (active, uniform)
         print(f"\n{'='*60}\n{cfg['run_tag']}\n{'='*60}")
         print(f"  model          : {cfg['model']}")
         print(f"  active params  : {active}")
         print(f"  uniformised    : {uniform}")
-        if dry_run:
-            rows.append({"run_tag": cfg["run_tag"], "pkl_path": "(dry-run)",
-                         "active_params": "|".join(active),
-                         "uniform_params": "|".join(uniform)})
-            continue
 
-        results, sampler, active_names, data, run_name = run_sampler(cfg)
-        rows.append({"run_tag": cfg["run_tag"],
-                     "pkl_path": pkl_path_for(run_name, cfg),
-                     "active_params": "|".join(active_names),
+    if dry_run:
+        rows = [{"run_tag": tag, "pkl_path": "(dry-run)",
+                 "active_params": "|".join(active),
+                 "uniform_params": "|".join(uniform)}
+                for tag, (active, uniform) in manifest.items()]
+        return pd.DataFrame(rows)
+
+    # ---- Dispatch the actual fits ----
+    n_workers = min(workers or len(entries), os.cpu_count() or 1)
+    if sequential:
+        n_workers = 1
+
+    os.makedirs(log_dir, exist_ok=True)
+    summary_path = os.path.join(log_dir, "uniformpriors_summary.log")
+    summary = open(summary_path, "w", buffering=1)
+    summary.write(f"Run started: {datetime.now().isoformat()}\n")
+    summary.write(f"Entries: {len(entries)}  Workers: {n_workers}\n\n")
+
+    print(f"\n{'='*60}")
+    print(f"Entries     : {len(entries)}")
+    print(f"Workers     : {n_workers}  (cores available: {os.cpu_count()})")
+    print(f"Log dir     : {os.path.abspath(log_dir)}/")
+    print(f"{'='*60}")
+    print(f"Logs are written to {os.path.abspath(log_dir)}/<tag>.log")
+    print(f"Monitor a run with:  tail -f {log_dir}/<tag>.log\n")
+
+    work = [(i, cfg, log_dir) for i, cfg in enumerate(entries)]
+    results = []
+
+    if n_workers == 1:
+        # Sequential — useful for debugging. Still routes through
+        # _run_one, so this still logs to log_dir/<tag>.log exactly like
+        # the parallel path.
+        for item in work:
+            r = _run_one(item)
+            results.append(r)
+            idx, tag, status, elapsed, _, _ = r
+            line = f"[{status.upper():>6}]  [{idx:>2}]  {tag:<50}  {elapsed:7.1f}s\n"
+            print(line, end="")
+            summary.write(line)
+            summary.flush()
+    else:
+        # spawn, not fork — see extra_runners.py's identical comment: fork
+        # would copy the parent's already-initialised BLAS thread pool
+        # across the fork boundary, risking deadlocks/SIGKILL
+        # ("BrokenProcessPool"). Spawn starts a clean interpreter per
+        # worker instead, at the cost of ~1-2s import overhead per worker,
+        # negligible for a nested-sampling run.
+        import multiprocessing as _mp
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        _ctx = _mp.get_context("spawn")
+
+        with ProcessPoolExecutor(max_workers=n_workers, mp_context=_ctx) as pool:
+            futures = {pool.submit(_run_one, item): item[0] for item in work}
+            for fut in as_completed(futures):
+                try:
+                    r = fut.result()
+                except Exception as exc:
+                    # Worker process died with an unrecoverable error
+                    # (e.g. OOM, signal) -- record as failed rather than
+                    # crashing the parent.
+                    item_idx = futures[fut]
+                    item_tag = entries[item_idx]["run_tag"]
+                    tb = f"{type(exc).__name__}: {exc}"
+                    print(f"\n[CRASH]  [{item_idx:>2}]  {item_tag}  —  {tb}",
+                         flush=True)
+                    r = (item_idx, item_tag, "failed", 0.0, "", tb)
+                results.append(r)
+                idx, tag, status, elapsed, _, _ = r
+                line = (f"[{status.upper():>6}]  [{idx:>2}]  "
+                        f"{tag:<50}  {elapsed:7.1f}s\n")
+                print(line, end="")
+                summary.write(line)
+                summary.flush()
+
+    ok     = [r for r in results if r[2] == "ok"]
+    failed = [r for r in results if r[2] == "failed"]
+    footer = (f"\n{'='*60}\n"
+              f"Finished {len(ok)}/{len(results)} entries successfully.\n")
+    if failed:
+        footer += "Failed:\n"
+        for idx, tag, _, elapsed, _, err in failed:
+            first_line = err.strip().splitlines()[-1] if err else "unknown"
+            footer += f"  [{idx}] {tag}: {first_line}\n"
+    footer += f"{'='*60}\n"
+
+    print(footer)
+    summary.write(footer)
+    summary.close()
+    print(f"Full summary written to: {summary_path}")
+
+    # ---- Build the final per-entry report CSV, joining the manifest
+    # (active/uniformised params, known before any fit ran) with the
+    # execution result (status/elapsed/pkl_path, known after) by index. ----
+    by_idx = {r[0]: r for r in results}
+    rows = []
+    for i, cfg in enumerate(entries):
+        tag = cfg["run_tag"]
+        active, uniform = manifest[tag]
+        r = by_idx.get(i)
+        status, elapsed, pkl_path = (r[2], r[3], r[4]) if r else ("not_run", "", "")
+        rows.append({"run_tag": tag, "status": status, "elapsed_s": elapsed,
+                     "pkl_path": pkl_path,
+                     "active_params": "|".join(active),
                      "uniform_params": "|".join(uniform)})
 
     report = pd.DataFrame(rows)
-    if not dry_run:
-        report.to_csv(SUMMARY_FILE, index=False)
-        print(f"\nUniform-priors check summary saved: {SUMMARY_FILE}")
-        print(f"  outputs  : {OUTPUT_DIR}/")
-        print(f"  registry : {REGISTRY_FILE}")
-        print(f"  NOTE: compare ln Z only WITHIN {REGISTRY_FILE} "
-              f"(against '{TAG_PREFIX}/baseline'), never against "
-              f"run_publication_registry.csv -- the prior volumes differ.")
+    report.to_csv(SUMMARY_FILE, index=False)
+    print(f"\nUniform-priors check summary saved: {SUMMARY_FILE}")
+    print(f"  outputs  : {OUTPUT_DIR}/")
+    print(f"  registry : {REGISTRY_FILE}")
+    print(f"  NOTE: compare ln Z only WITHIN {REGISTRY_FILE} "
+          f"(against '{TAG_PREFIX}/baseline'), never against "
+          f"run_publication_registry.csv -- the prior volumes differ.")
     return report
 
 
@@ -384,7 +662,8 @@ def _parse_args():
                     f"{OUTPUT_DIR}/ with their own registry "
                     f"({REGISTRY_FILE}); tags use '{TAG_PREFIX}/'. Define "
                     f"runs either as explicit ENTRIES or as TERMS+COMBOS "
-                    f"for your chosen best models.")
+                    f"for your chosen best models. Runs in parallel via "
+                    f"--workers, same model as extra_runners.py.")
     p.add_argument("--only", default=None,
                    help="Comma-separated bare tags (e.g. "
                         "'baseline,stretch_powerlaw') to run. Default: "
@@ -396,6 +675,16 @@ def _parse_args():
     p.add_argument("--combos-only", action="store_true",
                    help="Run only the TERMS/COMBOS entries, skipping ENTRIES.")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--workers", type=int, default=None,
+                   help="Max parallel worker processes (default: number "
+                        "of selected entries, capped at os.cpu_count()). "
+                        "Each worker uses exactly 1 CPU thread.")
+    p.add_argument("--log-dir", default="logs",
+                   help="Directory for per-entry log files (default: logs/).")
+    p.add_argument("--sequential", action="store_true",
+                   help="Disable parallelism — run one entry at a time "
+                        "(useful for debugging). Still logs to "
+                        "--log-dir/<tag>.log, same as the parallel path.")
     return p.parse_args()
 
 
@@ -418,4 +707,6 @@ if __name__ == "__main__":
     only = args.only.split(",") if args.only else None
     run_uniform_priors_check(only=only, dry_run=args.dry_run,
                              include_entries=include_entries,
-                             include_combos=include_combos)
+                             include_combos=include_combos,
+                             workers=args.workers, log_dir=args.log_dir,
+                             sequential=args.sequential)

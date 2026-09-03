@@ -1,0 +1,7 @@
+run_tag,status,elapsed_s,pkl_path,active_params,uniform_params
+uniformpriors/combo_interaction,ok,7238.647670030594,uniform_checks/uniformpriors/combo_interaction_results.pkl,alpha|beta|gamma|Om0|gamma_alpha,alpha|beta|gamma_alpha
+uniformpriors/combo_interaction_sn_colour,ok,9734.428629875183,uniform_checks/uniformpriors/combo_interaction_sn_colour_results.pkl,alpha|beta|gamma|Om0|gamma_alpha|sn_tau,alpha|beta|gamma_alpha|sn_tau
+uniformpriors/combo_interaction_sn_colour_host,ok,9408.312512159348,uniform_checks/uniformpriors/combo_interaction_sn_colour_host_results.pkl,alpha|beta|gamma|Om0|gamma_alpha|sn_tau,alpha|beta|gamma_alpha|sn_tau
+uniformpriors/combo_sn_colour_host,ok,5663.436221599579,uniform_checks/uniformpriors/combo_sn_colour_host_results.pkl,alpha|beta|gamma|Om0|sn_tau,alpha|beta|sn_tau
+uniformpriors/combo_sn_colour,ok,6003.4456515312195,uniform_checks/uniformpriors/combo_sn_colour_results.pkl,alpha|beta|gamma|Om0|sn_tau,alpha|beta|sn_tau
+uniformpriors/combo_host_colour,ok,8691.47768330574,uniform_checks/uniformpriors/combo_host_colour_results.pkl,alpha|beta|gamma|Om0|eta,alpha|beta|eta

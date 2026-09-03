@@ -1,0 +1,42 @@
+
+============================================================
+uniformpriors/combo_interaction
+============================================================
+  model          : {'sn_colour': 'linear', 'x1_correction': 'linear', 'mass': 'step', 'host_colour': 'none', 'ssfr': 'none', 'z_evolve': 'power'}
+  active params  : ['alpha', 'beta', 'gamma', 'Om0', 'gamma_alpha']
+  uniformised    : ['alpha', 'beta', 'gamma_alpha']
+
+============================================================
+uniformpriors/combo_interaction_sn_colour
+============================================================
+  model          : {'sn_colour': 'softbroken', 'x1_correction': 'linear', 'mass': 'step', 'host_colour': 'none', 'ssfr': 'none', 'z_evolve': 'power'}
+  active params  : ['alpha', 'beta', 'gamma', 'Om0', 'gamma_alpha', 'sn_tau']
+  uniformised    : ['alpha', 'beta', 'gamma_alpha', 'sn_tau']
+
+============================================================
+uniformpriors/combo_interaction_sn_colour_host
+============================================================
+  model          : {'sn_colour': 'softbroken', 'x1_correction': 'linear', 'mass': 'linear', 'host_colour': 'none', 'ssfr': 'none', 'z_evolve': 'power'}
+  active params  : ['alpha', 'beta', 'gamma', 'Om0', 'gamma_alpha', 'sn_tau']
+  uniformised    : ['alpha', 'beta', 'gamma_alpha', 'sn_tau']
+
+============================================================
+uniformpriors/combo_sn_colour_host
+============================================================
+  model          : {'sn_colour': 'softbroken', 'x1_correction': 'linear', 'mass': 'linear', 'host_colour': 'none', 'ssfr': 'none', 'z_evolve': 'power'}
+  active params  : ['alpha', 'beta', 'gamma', 'Om0', 'sn_tau']
+  uniformised    : ['alpha', 'beta', 'sn_tau']
+
+============================================================
+uniformpriors/combo_sn_colour
+============================================================
+  model          : {'sn_colour': 'softbroken', 'x1_correction': 'linear', 'mass': 'step', 'host_colour': 'none', 'ssfr': 'none', 'z_evolve': 'power'}
+  active params  : ['alpha', 'beta', 'gamma', 'Om0', 'sn_tau']
+  uniformised    : ['alpha', 'beta', 'sn_tau']
+
+============================================================
+uniformpriors/combo_host_colour
+============================================================
+  model          : {'sn_colour': 'linear', 'x1_correction': 'linear', 'mass': 'step', 'host_colour': 'tanh', 'ssfr': 'none', 'z_evolve': 'power'}
+  active params  : ['alpha', 'beta', 'gamma', 'Om0', 'eta']
+  uniformised    : ['alpha', 'beta', 'eta']

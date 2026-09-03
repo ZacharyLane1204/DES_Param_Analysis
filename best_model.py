@@ -52,7 +52,14 @@ TERMS = {
     },
     "host_colour": {
         "model": {"host_colour": "tanh"},
-        "param_overrides": {},
+        # eta is host_colour's own amplitude coefficient (arcsinh prior,
+        # DEFAULT_PARAM_SPECS default active=False, fixed=0.035). Left
+        # inactive here previously, so turning on model["host_colour"]
+        # applied the tanh correction at that FIXED 0.035 value without
+        # ever sampling or fitting it -- the ablation wasn't actually
+        # testing this term's amplitude at all. Activate it, same pattern
+        # as "interaction" activating gamma_alpha above.
+        "param_overrides": {"eta": {"active": True, "fixed": None}},
     },
     # Add new terms here as they're picked, e.g.:
     # "mass_sigmoid_M0tau": {
