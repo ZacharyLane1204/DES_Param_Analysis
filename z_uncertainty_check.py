@@ -3,6 +3,7 @@ z_uncertainty_check.py  —  SNe Ia Cosmology Pipeline
 ========================================================
 Monte-Carlo redshift-uncertainty propagation check, run over EVERY competing
 model in best_model.COMBOS, in parallel.
+Defaults to the baseline model alone -- see WHICH MODELS below.
 
 Rather than marginalising redshift uncertainty into the likelihood by
 quadrature -- which risks double-counting against MUERR (which already carries
@@ -44,17 +45,29 @@ support the conclusion it was being used to draw.
 
 N=64 is the default here: 9% precision, comfortably inside the 20% threshold,
 so a model that lands near the boundary is still classified reliably rather
-than by the luck of the draw. Cost is 9 models x 65 fits = 585 runs. These are
+than by the luck of the draw. Cost is 65 fits per model. These are
 the cheapest fits in the pipeline -- one sampler call each, no LOO folds, no
 cones -- and they parallelise perfectly, so this is a wall-clock decision, not
-a feasibility one.
+a feasibility one. At the default single-model scope it is 65 fits.
 
-Cheaper options, all valid, all supported:
-  --n-realizations 8                smoke test (27%, do not quote)
-  --n-realizations 24               15%, 225 runs
-  --best-model-only                 65 runs at N=64, if only the adopted
-                                    model's redshift systematic is going in
-                                    the paper
+WHICH MODELS (default: the baseline, alone)
+-------------------------------------------
+By default this runs ONLY best_model.BASELINE_COMBO -- 65 fits at N=64, not
+585. That is deliberate. The size of the redshift systematic is a property of
+THE DATA, not of your standardisation model, so the useful first number is the
+baseline one. Measure it on nine models before you have that reference and you
+get nine numbers with nothing to read them against, at nine times the cost.
+
+  (default)            baseline only, 65 fits    <- start here
+  --best-model-only    BEST_COMBO only, 65 fits  <- once the ladder settles it
+  --only a,b,c         named combos
+  --all-combos         all 9, 585 fits           <- only if the baseline result
+                                                    turns out to be model
+                                                    dependent
+
+Cheaper N, all valid:
+  --n-realizations 8    smoke test (27%, do not quote)
+  --n-realizations 24   15%
 
 DOUBLE-COUNTING PECULIAR VELOCITY
 ---------------------------------
@@ -100,7 +113,8 @@ from config import CONFIG, DEFAULT_PARAM_SPECS
 from run import load_and_filter_data, run_sampler, pkl_path_for
 from experiment_naming import ExperimentRegistry
 from loo_zbins import _refactorise_covariance
-from best_model import COMBOS, BEST_COMBO, merge_terms as _merge_terms, combo_tag
+from best_model import (COMBOS, BEST_COMBO, BASELINE_COMBO,
+                        merge_terms as _merge_terms, combo_tag)
 from parallel_runner import Job, run_jobs, add_parallel_args
 
 
@@ -490,10 +504,15 @@ def _parse_args():
                     "its own uncertainty, then compare the scatter -- and any "
                     "systematic shift -- to the unperturbed posterior width.")
     p.add_argument("--only", default=None,
-                   help="Comma-separated combo tags to run "
-                        "(default: all of best_model.COMBOS).")
+                   help="Comma-separated combo tags to run. Overrides the "
+                        "baseline-only default.")
     p.add_argument("--best-model-only", action="store_true",
-                   help="Run only best_model.BEST_COMBO.")
+                   help="Run best_model.BEST_COMBO instead of the baseline.")
+    p.add_argument("--all-combos", action="store_true",
+                   help="Run every entry in best_model.COMBOS. This is the "
+                        "expensive option (9 x (N+1) fits) and is only worth "
+                        "it once you have the baseline number to read the "
+                        "others against.")
     p.add_argument("--list", action="store_true",
                    help="List available combo tags and exit.")
     p.add_argument("--n-realizations", type=int, default=DEFAULT_N_REALIZATIONS,
@@ -528,8 +547,25 @@ if __name__ == "__main__":
             print(f"  {combo_tag(c)}")
         raise SystemExit(0)
 
+    # Default is the BASELINE model alone. The redshift systematic is a
+    # property of the data, so measure it once on the reference model first;
+    # a per-model number means nothing until you have that to compare against.
+    # --all-combos / --best-model-only / --only expand it later.
+    if args.only:
+        _combos = None                       # --only filters COMBOS below
+    elif args.all_combos:
+        _combos = None
+    elif args.best_model_only:
+        _combos = [BEST_COMBO]
+    else:
+        _combos = [BASELINE_COMBO]
+
+    if _combos is not None:
+        print(f"\n  Model set: {', '.join(combo_tag(c) for c in _combos)}"
+              f"   (--all-combos runs all {len(COMBOS)})")
+
     run_z_uncertainty_check(
-        combos=[BEST_COMBO] if args.best_model_only else None,
+        combos=_combos,
         only=[s.strip() for s in args.only.split(",")] if args.only else None,
         n_realizations=args.n_realizations,
         seed0=args.seed0,

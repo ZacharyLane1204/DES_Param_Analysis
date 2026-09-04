@@ -289,6 +289,26 @@ COMBOS = [
 # of this module enforces it.
 BEST_COMBO = ["mass_linear", "ssfr_tanh"]
 
+# BASELINE_COMBO  —  the published reference model
+# ------------------------------------------------
+# mass="step" with no other host term: the model every dlnZ in
+# run_publication_registry.csv is quoted against (lnZ = -452.777).
+#
+# This, not BEST_COMBO, is the default for the checks whose question is
+# "how big is this systematic?" rather than "which model wins?":
+# z_uncertainty_check.py and combo_ablation_checks.py's drilling cones.
+# The reason is ordering. A redshift-systematic or line-of-sight
+# systematic measured on the baseline is a property of THE DATA, and it is
+# the number you need before you can say whether a fancier model's shift
+# is the model responding to real structure or just to that systematic.
+# Measuring it on nine models first gives you nine numbers and no
+# reference to read them against, at nine times the cost.
+#
+# So: run these on BASELINE_COMBO, establish the systematic, then expand to
+# --all-combos (or --best-model-only) once BEST_COMBO is settled by the
+# ablation ladder.
+BASELINE_COMBO = ["mass_step"]
+
 
 def merge_terms(term_names, terms=None):
     """Union the model-dict and param_overrides of every named term.
@@ -393,3 +413,14 @@ if list(BEST_COMBO) not in [list(c) for c in COMBOS]:
         f"z_uncertainty_check.py, extra_runners.py) iterates COMBOS, so the "
         f"reported best model would be the only one never checked. Add it to "
         f"COMBOS, or point BEST_COMBO at a combo that is already there.")
+
+# BASELINE_COMBO must also be a member of COMBOS, for the same reason plus one
+# more: it is the default model for z_uncertainty_check.py and for the drilling
+# cones, so if it were not in the ladder the systematic would be measured on a
+# model that is never itself evidence-ranked.
+if list(BASELINE_COMBO) not in [list(c) for c in COMBOS]:
+    raise ValueError(
+        f"BASELINE_COMBO {BASELINE_COMBO} is not in COMBOS. It is the default "
+        f"model for z_uncertainty_check.py and combo_ablation_checks.py's "
+        f"drilling cones, and the anchor the paper's dlnZ values are quoted "
+        f"against, so it has to be a rung on the ladder.")
