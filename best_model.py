@@ -185,11 +185,21 @@ COMBOS = [
 
     # ---- BLOCK B: mass="linear" (gamma_alpha needs G != 0) --------------
     ["mass_linear"],                                                 # B ref
+    ["mass_linear", "ssfr_tanh"],                                    # B single
     ["mass_linear", "interaction_gammaalpha"],                       # B single
     ["mass_linear", "sncolour_softbroken_sntau"],                    # B single
     ["mass_linear", "interaction_gammaalpha",
      "sncolour_softbroken_sntau"],                                   # B PAIR 3
 ]
+
+# BEST_COMBO below MUST be one of the entries above. Every "all competing
+# models" driver (combo_ablation_checks.py, z_uncertainty_check.py,
+# extra_runners.py) iterates COMBOS, so a BEST_COMBO that is not in COMBOS
+# would be the one model the paper actually reports and the ONLY model that
+# never gets a host-quality check, a leave-one-z-bin-out validation, a
+# drilling-cone check, a redshift-uncertainty check or a wCDM/subsample
+# refit. That was the case before ["mass_linear", "ssfr_tanh"] was added to
+# Block B above. The assertion at the bottom of this module enforces it.
 
 # ===========================================================================
 # 3. BEST_COMBO  —  the single chosen FINAL model
@@ -203,15 +213,16 @@ COMBOS = [
 # baseline, and the best of all 485 runs -- still the champion after the
 # x1_tau fix, which changed only the stretch/* family).
 #
-# NOTE this is deliberately NOT one of the COMBOS entries above. COMBOS is an
-# exploratory factorial that answers "do these three terms interact?"; this
-# is the model the paper actually reports and that extra_runners.py's
-# HOSTERR_BEST and z_uncertainty_check.py both build from. Promote a ladder
-# entry here only if it beats mass_linear+ssfr_tanh by more than the combined
-# logZ_err (~0.1, so require dlnZ > ~1 to justify the extra parameter), and
-# remember Block A's entries are fitted on mass="none" so their lnZ is not
-# directly comparable to this model's -- refit the winner with mass="linear"
-# before promoting it.
+# NOTE this is now ALSO one of the COMBOS entries above (Block B "single").
+# It has to be: every driver that runs "all competing models" iterates COMBOS,
+# so a BEST_COMBO outside that list would be the single model the paper
+# reports and the only one never checked for host-match quality, z-bin
+# stability, line-of-sight systematics, redshift uncertainty or subsample
+# robustness. Promote a different ladder entry here only if it beats
+# mass_linear+ssfr_tanh by more than the combined logZ_err (~0.1, so require
+# dlnZ > ~1 to justify an extra parameter), and remember Block A's entries are
+# fitted on mass="none" so their lnZ is not directly comparable to this
+# model's -- refit the winner with mass="linear" before promoting it.
 BEST_COMBO = ["mass_linear", "ssfr_tanh"]
 
 
@@ -287,3 +298,34 @@ def resolved_best_param_specs():
     for name, updates in param_overrides.items():
         specs[name].update(updates)
     return specs
+
+# ===========================================================================
+# 5. IMPORT-TIME CONSISTENCY CHECKS
+# ===========================================================================
+# These run on `import best_model`, so a bad edit above fails immediately in
+# every driver rather than silently producing a systematically incomplete set
+# of checks that only becomes obvious at write-up.
+
+# Every combo must be uniquely named, or the drivers' run tags collide and the
+# second fit either overwrites the first or is skipped.
+_seen_tags = {}
+for _c in COMBOS:
+    _t = combo_tag(_c)
+    if _t in _seen_tags:
+        raise ValueError(
+            f"Duplicate combo tag {_t!r} in COMBOS: {_seen_tags[_t]} and {_c} "
+            f"produce the same tag, so their run tags would collide in every "
+            f"driver.")
+    _seen_tags[_t] = _c
+    merge_terms(_c)          # surfaces unknown/conflicting terms at import
+del _seen_tags, _c, _t
+
+# BEST_COMBO must be a member of COMBOS. See the comment above BEST_COMBO for
+# why: everything that runs "all competing models" iterates COMBOS.
+if list(BEST_COMBO) not in [list(c) for c in COMBOS]:
+    raise ValueError(
+        f"BEST_COMBO {BEST_COMBO} is not in COMBOS. Every driver that checks "
+        f"'all competing models' (combo_ablation_checks.py, "
+        f"z_uncertainty_check.py, extra_runners.py) iterates COMBOS, so the "
+        f"reported best model would be the only one never checked. Add it to "
+        f"COMBOS, or point BEST_COMBO at a combo that is already there.")

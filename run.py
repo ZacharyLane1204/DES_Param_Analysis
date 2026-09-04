@@ -38,6 +38,7 @@ import sys
 import copy
 import math
 import time
+import fcntl
 import pickle
 import argparse
 import warnings
@@ -342,28 +343,52 @@ def update_registry(run_name, config, param_specs, active_names, results,
     Append or update a row in the run registry CSV.
     If run_name already exists the row is overwritten in-place.
     Creates the file on the first call.
+
+    The read-modify-write below is guarded by an exclusive lock on a
+    sidecar "<registry>.lock" file. experiment_runner.py / extra_runners.py
+    / uniform_priors_check.py run this from many worker processes at once
+    (ProcessPoolExecutor, spawn), and every worker targets the SAME
+    registry CSV. Unlocked, two workers finishing close together both read
+    the same snapshot and the second to write silently discards the first
+    one's row -- a lost run that looks exactly like a run that was never
+    submitted. The lock is on a sidecar rather than the CSV itself so the
+    whole-file rewrite (which replaces the inode) cannot drop it.
     """
     registry_path = config.get("registry_file", "run_registry.csv")
     row = _registry_row(run_name, config, param_specs, active_names, results,
                         nlive_used, data, inv_cov_mat, model_cfg, cosmo_type)
     df_new = pd.DataFrame([row])
 
-    if os.path.isfile(registry_path):
-        existing = pd.read_csv(registry_path)
-        # Add any new columns that didn't exist in the old file
-        for col in df_new.columns:
-            if col not in existing.columns:
-                existing[col] = ""
-        # Overwrite if run_name already present, otherwise append
-        if run_name in existing["run_name"].values:
-            existing.loc[existing["run_name"] == run_name, df_new.columns] = df_new.values
-            combined = existing
-        else:
-            combined = pd.concat([existing, df_new], ignore_index=True)
-    else:
-        combined = df_new
+    lock_path = registry_path + ".lock"
+    _lock_dir = os.path.dirname(lock_path)
+    if _lock_dir:
+        os.makedirs(_lock_dir, exist_ok=True)
+    with open(lock_path, "w") as _lock:
+        fcntl.flock(_lock.fileno(), fcntl.LOCK_EX)
+        try:
+            if os.path.isfile(registry_path):
+                existing = pd.read_csv(registry_path)
+                # Add any new columns that didn't exist in the old file
+                for col in df_new.columns:
+                    if col not in existing.columns:
+                        existing[col] = ""
+                # Overwrite if run_name already present, otherwise append
+                if run_name in existing["run_name"].values:
+                    existing.loc[existing["run_name"] == run_name, df_new.columns] = df_new.values
+                    combined = existing
+                else:
+                    combined = pd.concat([existing, df_new], ignore_index=True)
+            else:
+                combined = df_new
 
-    combined.to_csv(registry_path, index=False)
+            # Write to a temp file in the same directory then atomically
+            # rename over the target, so a crash mid-write can never leave a
+            # truncated registry behind.
+            tmp_path = f"{registry_path}.tmp.{os.getpid()}"
+            combined.to_csv(tmp_path, index=False)
+            os.replace(tmp_path, registry_path)
+        finally:
+            fcntl.flock(_lock.fileno(), fcntl.LOCK_UN)
     print(f"Registry updated: {registry_path}  (run: {run_name})")
 
 # ===========================================================================

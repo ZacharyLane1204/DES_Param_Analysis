@@ -1,41 +1,58 @@
 r"""
 latex_tables.py  —  SNe Ia Cosmology Pipeline
 ===============================================
-Generates four LaTeX tables from config.py and run registry CSVs.
+Generates the paper's LaTeX tables from config.py, the run registries, and the
+summary CSVs the check drivers write.
 
-  Table 1 (priors)      : parameter prior specifications.  Uses table*.
-  Table 2 (iterations)  : one row per run.  Uses longtable (full page
-                          width, automatic multi-page continuation).
-  Table 3 (evidence)    : chi2, chi2/dof, Delta AIC, Delta BIC, Delta ln B.
-                          Uses longtable.
-  Table 4 (checks)      : same columns, grouped by section, from
-                          run_checks_registry.csv.  Uses longtable.
-  Table 5 (drilling cones): line-of-sight/sky-position systematic check,
-                          from a CSV written by drilling_cones.py /
-                          drilling_cones_checks.py.  Uses longtable.
+THE SIX PAPER TABLES  (--all generates every one)
+-------------------------------------------------
+  (a) --priors        Parameter prior specifications.            [config.py]
+  (b) --iterations    One row per publication-registry run.      [registry]
+  (c) --evidence      chi2, chi2/dof, dAIC, dBIC, dlnB.          [registry]
+  (d) --extra-checks  Evidence for every extra_runners.py check category,
+                      sectioned a-l, plus the host measurement-error variants
+                      and the host-match-quality check.
+                      [extra_runners/*.csv + combo_ablation/combo_host_quality.csv]
+  (e) --loo-zbins     Leave-one-redshift-bin-out validation, BASELINE MODEL
+                      ONLY.                  [combo_ablation/combo_loo_zbins.csv]
+  (f) --cones         Per-sky-cone evidence and recovered cosmology, BASELINE
+                      MODEL ONLY, each cone compared against a same-prior
+                      all-sky reference.  [combo_ablation/combo_drilling_cones.csv]
+
+Tables (e) and (f) are deliberately single-model. Running them for all ten
+competing models would be dozens of pages and would not answer the question
+they exist to answer, which is whether the model the paper ADOPTS extrapolates
+across redshift and across the sky. The per-model versions of both are in
+combo_ablation_checks.py's CSVs if a referee asks.
+
+Supplementary/legacy tables (--checks, --additional-checks, --uniform-priors,
+--host-error, --drilling-cones) read run registries directly and are kept for
+the older run families; --extra-checks and --cones supersede --checks and
+--drilling-cones respectively.
 
 longtable notes
 ---------------
-  Requires in preamble:
+  Requires in preamble (see --preamble, which prints a ready-made block):
     \usepackage{longtable}
-    \usepackage{booktabs}        % for \toprule etc (optional but nice)
-    \setlength{\LTleft}{0pt}    % flush left so table spans full width
+    \usepackage{booktabs}
+    \usepackage[table]{xcolor}
+    \setlength{\LTleft}{0pt}
     \setlength{\LTright}{0pt}
 
-  longtable automatically repeats the header on every new page and prints
-  "Table N continued" via \endhead and \endfirsthead.
-  \endfoot / \endlastfoot control the footer on mid-page / final page.
-
-  cellcolor (xcolor) works normally inside longtable.
+  longtable repeats the header on every page via \endhead / \endfirsthead,
+  and \endfoot / \endlastfoot control the mid-page / final footer.
+  \cellcolor works normally inside longtable.
 
 Usage
 -----
-  python latex_tables.py --priors
-  python latex_tables.py --iterations
-  python latex_tables.py --evidence
-  python latex_tables.py --checks
-  python latex_tables.py --preamble
+  python latex_tables.py --list-tables
+  python latex_tables.py --all --out-dir tables/      # every table, one file each
+  python latex_tables.py --all                         # every table, to stdout
   python latex_tables.py --evidence --out evidence_table.tex
+  python latex_tables.py --cones --combo mass_linear_ssfr_tanh
+
+--all builds each table independently: a missing input CSV costs you that one
+table and prints which script to run for it, rather than aborting the run.
 """
 
 import argparse
@@ -102,6 +119,24 @@ def _label(name):
 
 def _esc(s):
     return str(s).replace("_", r"\_")
+
+
+def _esc_prose(s):
+    r"""Escape a human-written string (a section title, a check description)
+    for LaTeX text mode.
+
+    _esc above only handles underscores, which is enough for run tags but not
+    for prose imported from another module's help text -- an unescaped "<"
+    silently typesets as an inverted exclamation mark rather than failing, so
+    the error only shows up in the compiled PDF.
+    """
+    out = str(s)
+    for ch in ("&", "%", "#"):
+        out = out.replace(ch, "\\" + ch)
+    out = out.replace("_", r"\_")
+    out = out.replace("<", "$<$").replace(">", "$>$")
+    out = out.replace("*", "$^{*}$")
+    return out
 
 
 def _read_float(row, col):
@@ -1511,6 +1546,399 @@ def generate_drilling_cones_table(csv_path):
 
 
 # ===========================================================================
+# TABLE (d) — Extra systematic checks + host-match quality
+# ===========================================================================
+# Reads the CSVs written by the REWRITTEN extra_runners.py
+# (extra_runners/extra_runners_evidence.csv) and, for the host-match-quality
+# section, combo_ablation_checks.py (combo_ablation/combo_host_quality.csv).
+#
+# Neither is a run registry: both are already-reduced summaries with the
+# comparisons done, which is what keeps this function free of any lnZ
+# arithmetic that could silently disagree with what those scripts reported.
+
+DEFAULT_EXTRA_EVIDENCE_CSV = "extra_runners/extra_runners_evidence.csv"
+DEFAULT_EXTRA_HOSTERR_CSV  = "extra_runners/extra_runners_hosterr.csv"
+DEFAULT_COMBO_HOSTQUAL_CSV = "combo_ablation/combo_host_quality.csv"
+DEFAULT_COMBO_LOO_CSV      = "combo_ablation/combo_loo_zbins.csv"
+DEFAULT_COMBO_CONES_CSV    = "combo_ablation/combo_drilling_cones.csv"
+DEFAULT_CONE_PLAN_CSV      = "combo_ablation/cone_plan.csv"
+
+
+def _model_latex(combo_tag_str):
+    r"""Turn a combo tag into a readable model name.
+
+    'mass_linear_ssfr_tanh' -> 'mass linear + sSFR tanh'. Falls back to the
+    escaped raw tag for anything unrecognised rather than guessing, so a new
+    term shows up verbatim instead of silently mislabelled.
+    """
+    parts = [
+        ("mass_none",                  r"no mass term"),
+        ("mass_linear",                r"mass linear"),
+        ("mass_step",                  r"mass step"),
+        ("ssfr_tanh",                  r"sSFR tanh"),
+        ("ssfr_linear",                r"sSFR linear"),
+        ("sncolour_softbroken_sntau",  r"SN colour softbroken"),
+        ("interaction_gammaalpha",     r"$\gamma_\alpha$ interaction"),
+    ]
+    rest = str(combo_tag_str)
+    found = []
+    for key, label in parts:
+        if rest.startswith(key + "_"):
+            found.append(label)
+            rest = rest[len(key) + 1:]
+        elif rest == key:
+            found.append(label)
+            rest = ""
+    if rest:
+        found.append(_esc(rest))
+    return " + ".join(found) if found else _esc(str(combo_tag_str))
+
+
+def generate_extra_checks_table(evidence_csv=None, host_quality_csv=None,
+                                hosterr_csv=None):
+    r"""
+    TABLE (d) — Evidence for every extra_runners.py check category, plus the
+    host-match-quality check from combo_ablation_checks.py.
+
+    Sectioned by check category (a-l). Within a section every model is fitted
+    on exactly the SAME supernovae, so $\Delta\ln Z$ against the best model in
+    that section is a genuine Bayes factor. lnZ is NOT comparable BETWEEN
+    sections whose categories cut the sample differently -- a section fitting
+    201 SNe will have a much larger lnZ than one fitting 1820 for reasons that
+    have nothing to do with the model. That is why this table reports a
+    within-section delta and no cross-section delta at all.
+    """
+    evidence_csv     = evidence_csv or DEFAULT_EXTRA_EVIDENCE_CSV
+    host_quality_csv = host_quality_csv or DEFAULT_COMBO_HOSTQUAL_CSV
+    hosterr_csv      = hosterr_csv or DEFAULT_EXTRA_HOSTERR_CSV
+
+    try:
+        df = pd.read_csv(evidence_csv)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Extra-checks evidence CSV not found: {evidence_csv}. "
+            f"Run:  python extra_runners.py --workers N")
+
+    df = df[df.get("status", "ok") == "ok"]
+    if not len(df):
+        raise ValueError(f"No successful runs in {evidence_csv}.")
+
+    NCOLS = 6
+    col_header = (r"Model & $N_{\rm SNe}$ & $k$ & $\ln Z$ & "
+                  r"$\Delta \ln Z$ & Tension")
+    col_spec = r"l c c c c c"
+
+    data_rows = []
+
+    # ---- one section per check category, in the a..l order ----------------
+    try:
+        import extra_runners
+        order = [c for c in extra_runners.CATEGORY_ORDER
+                 if c in set(df["category"])]
+        titles = {k: f"({extra_runners.CATEGORIES[k]['letter']}) "
+                     f"{extra_runners.CATEGORIES[k]['title']}"
+                  for k in extra_runners.CATEGORIES}
+    except Exception:
+        # Keep the table generatable on a machine that only has the CSVs.
+        order = sorted(set(df["category"]) - {"hosterr"})
+        titles = {}
+
+    for cat in order:
+        grp = df[df["category"] == cat].sort_values("logz", ascending=False)
+        if not len(grp):
+            continue
+        best = grp["logz"].max()
+        title = titles.get(cat, cat)
+        data_rows.append(r"\hline")
+        data_rows.append(
+            rf"\multicolumn{{{NCOLS}}}{{l}}{{\textbf{{{_esc_prose(title)}}}}}")
+        for _, r in grp.iterrows():
+            dlnz = r["logz"] - best
+            n_sne = r.get("n_sne")
+            n_str = f"{int(n_sne)}" if pd.notna(n_sne) else "---"
+            k_str = (f"{int(r['n_params'])}" if pd.notna(r.get("n_params"))
+                     else "---")
+            data_rows.append(
+                f"{_model_latex(r['combo'])} & {n_str} & {k_str} & "
+                f"{r['logz']:.2f} & {dlnz:+.2f} & ---")
+
+    # ---- host measurement-error variants (best model only) ---------------
+    try:
+        he = pd.read_csv(hosterr_csv)
+    except FileNotFoundError:
+        he = None
+    if he is not None and len(he):
+        data_rows.append(r"\hline")
+        data_rows.append(
+            rf"\multicolumn{{{NCOLS}}}{{l}}{{\textbf{{Host measurement-error "
+            rf"treatment (best model; same SNe, so $\Delta\ln Z$ is a Bayes "
+            rf"factor)}}}}")
+        for _, r in he.iterrows():
+            n_sne = r.get("n_sne")
+            n_str = f"{int(n_sne)}" if pd.notna(n_sne) else "---"
+            data_rows.append(
+                f"{_esc(str(r['variant']))} & {n_str} & --- & "
+                f"{r['logz']:.2f} & {r['delta_logz_vs_ref']:+.2f} & ---")
+
+    # ---- host-match quality, from combo_ablation_checks.py ---------------
+    # A DIFFERENT kind of row: the strict-host-match refit changes WHICH SNe
+    # are fitted, so its lnZ is not comparable to the reference's. What IS
+    # meaningful is the parameter-space tension between the two posteriors,
+    # which is what compare_two_runs reports and what is shown here.
+    try:
+        hq = pd.read_csv(host_quality_csv)
+    except FileNotFoundError:
+        hq = None
+    if hq is not None and len(hq):
+        data_rows.append(r"\hline")
+        data_rows.append(
+            rf"\multicolumn{{{NCOLS}}}{{l}}{{\textbf{{Host-match quality "
+            rf"(strict DDLR/CONFUSION/NMATCH cut vs.\ all)}}}}")
+        for _, r in hq.iterrows():
+            lnB = _read_float(r, "lnB")
+            lnB_str = f"{lnB:+.2f}" if lnB is not None else "---"
+            data_rows.append(
+                f"{_model_latex(r['combo'])} & --- & --- & --- & "
+                f"{lnB_str} & {_tension_cell(_read_float(r, 'gaussian_nsigma'))}")
+
+    notes = [
+        r"Each section refits every competing model on the same supernovae, so "
+        r"$\Delta \ln Z$ within a section is a genuine Bayes factor against "
+        r"that section's best model. $\ln Z$ values are \emph{not} comparable "
+        r"between sections that cut the sample differently: a section fitting "
+        r"fewer supernovae has a systematically different $\ln Z$ for reasons "
+        r"unrelated to the model.",
+        r"$k$ is the number of sampled parameters. The low-redshift section "
+        r"($z<0.1$) constrains $\Omega_{\rm M0}$ only weakly, so read it as a "
+        r"check on the standardisation parameters rather than on cosmology.",
+        r"Host-match-quality rows report the parameter-space tension between "
+        r"the strict-match and all-match posteriors, not an evidence "
+        r"comparison, because the two fits use different supernovae.",
+    ]
+
+    return _lt_wrap(
+        col_spec        = col_spec,
+        caption         = "Systematic Checks: Evidence by Check Category",
+        label           = "tab:extra_checks",
+        col_header_line = col_header,
+        data_rows       = data_rows,
+        ncols           = NCOLS,
+        notes           = notes,
+    )
+
+
+# ===========================================================================
+# TABLE (e) — Leave-one-redshift-bin-out validation (baseline model only)
+# ===========================================================================
+
+def generate_loo_zbins_table(loo_csv=None, combo=None):
+    r"""
+    TABLE (e) — Leave-one-redshift-bin-out cross-validation for the BASELINE
+    model only (not every competing model -- the point of this table is
+    whether the adopted model extrapolates across redshift, and one model's
+    folds are already a full page).
+
+    Reads combo_ablation/combo_loo_zbins.csv. Each row is a fit on all bins
+    EXCEPT one, whose held-out supernovae are then predicted. The residual is
+    evaluated with M re-estimated from the training data alone -- estimating
+    it from the held-out bin would absorb exactly the offset being tested.
+    """
+    loo_csv = loo_csv or DEFAULT_COMBO_LOO_CSV
+    try:
+        df = pd.read_csv(loo_csv)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"LOO z-bin CSV not found: {loo_csv}. "
+            f"Run:  python combo_ablation_checks.py --workers N")
+
+    if combo is None:
+        try:
+            import best_model
+            combo = best_model.combo_tag(best_model.BEST_COMBO)
+        except Exception:
+            combo = df["combo"].iloc[0]
+    sub = df[df["combo"] == combo].sort_values("fold")
+    if not len(sub):
+        raise ValueError(
+            f"No rows for combo {combo!r} in {loo_csv}. "
+            f"Available: {sorted(set(df['combo']))}")
+
+    NCOLS = 7
+    col_header = (r"Fold & Held-out $z$ range & $N_{\rm held}$ & "
+                  r"$N_{\rm train}$ & $\ln Z_{\rm train}$ & "
+                  r"$\langle \Delta\mu \rangle$ (mag) & $\Omega_{\rm M0}$")
+    col_spec = r"c c c c c c c"
+
+    data_rows = []
+    n_flagged = 0
+    for _, r in sub.iterrows():
+        res = _read_float(r, "mean_residual")
+        err = _read_float(r, "mean_residual_err")
+        if res is not None and err:
+            nsig = abs(res) / err
+            res_str = f"{res:+.4f} $\\pm$ {err:.4f}"
+            if nsig >= 2.0:
+                n_flagged += 1
+                res_str = rf"\cellcolor{{aicorange}}{res_str}"
+        else:
+            res_str = "---"
+        om = _read_float(r, "Om0_mean")
+        oe = _read_float(r, "Om0_std")
+        om_str = (f"{om:.3f} $\\pm$ {oe:.3f}" if om is not None and oe
+                  else (f"{om:.3f}" if om is not None else "---"))
+        data_rows.append(
+            f"{int(r['fold'])} & "
+            f"[{_read_float(r, 'z_lo'):.3f}, {_read_float(r, 'z_hi'):.3f}] & "
+            f"{int(r['n_heldout'])} & {int(r['n_sne'])} & "
+            f"{r['logz']:.2f} & {res_str} & {om_str}")
+
+    notes = [
+        rf"Model: {_model_latex(combo)}. Each fold refits the model on every "
+        rf"redshift bin except one and then predicts the held-out bin.",
+        r"$\langle \Delta\mu \rangle$ is the mean predictive distance-modulus "
+        r"residual of the held-out supernovae. The absolute magnitude $M$ is "
+        r"re-estimated from the training bins alone; estimating it from the "
+        r"held-out bin would absorb the very offset this test looks for.",
+        rf"{n_flagged}/{len(sub)} fold(s) show a held-out residual at or above "
+        rf"$2\sigma$; those are highlighted.",
+        r"$\ln Z_{\rm train}$ values are not comparable between folds -- each "
+        r"fold fits a different number of supernovae.",
+    ]
+
+    return _lt_wrap(
+        col_spec        = col_spec,
+        caption         = "Leave-One-Redshift-Bin-Out Cross-Validation "
+                          "(baseline model)",
+        label           = "tab:loo_zbins",
+        col_header_line = col_header,
+        data_rows       = data_rows,
+        ncols           = NCOLS,
+        notes           = notes,
+    )
+
+
+# ===========================================================================
+# TABLE (f) — Drilling cones (baseline model only), with cosmology shift
+# ===========================================================================
+
+def generate_combo_cones_table(cones_csv=None, cone_plan_csv=None, combo=None):
+    r"""
+    TABLE (f) — Per-sky-cone evidence and cosmology for the BASELINE model.
+
+    Reads combo_ablation/combo_drilling_cones.csv (plus cone_plan.csv for the
+    sky centres). Every cone is fitted with the SAME broad uniform prior on
+    $\Omega_{\rm M0}$ as its reference, which is the whole point: with the
+    informative publication prior, the prior rather than the data would set
+    every cone's $\Omega_{\rm M0}$ and every cone would look reassuringly
+    consistent for entirely the wrong reason.
+    """
+    cones_csv = cones_csv or DEFAULT_COMBO_CONES_CSV
+    try:
+        df = pd.read_csv(cones_csv)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Drilling-cones CSV not found: {cones_csv}. "
+            f"Run:  python combo_ablation_checks.py --workers N")
+
+    if combo is None:
+        try:
+            import best_model
+            combo = best_model.combo_tag(best_model.BEST_COMBO)
+        except Exception:
+            combo = df["combo"].iloc[0]
+    sub = df[df["combo"] == combo].sort_values("cone")
+    if not len(sub):
+        raise ValueError(
+            f"No rows for combo {combo!r} in {cones_csv}. "
+            f"Available: {sorted(set(df['combo']))}")
+
+    centres = {}
+    try:
+        plan = pd.read_csv(cone_plan_csv or DEFAULT_CONE_PLAN_CSV)
+        for _, r in plan.iterrows():
+            centres[int(r["cone"])] = (_read_float(r, "ra_centre"),
+                                       _read_float(r, "dec_centre"))
+    except (FileNotFoundError, KeyError, ValueError):
+        pass
+
+    NCOLS = 8
+    col_header = (r"Cone & $N_{\rm SNe}$ & R.A.\ (deg) & Dec.\ (deg) & "
+                  r"$\ln Z$ & $\Omega_{\rm M0}$ & "
+                  r"$\Delta \Omega_{\rm M0}$ & Tension")
+    col_spec = r"c c c c c c c c"
+
+    ref_om, ref_oe, ref_lnz = None, None, None
+    data_rows = []
+    n_flagged = 0
+    for _, r in sub.iterrows():
+        cone = int(r["cone"])
+        ra, dec = centres.get(cone, (None, None))
+        ra_str  = f"{ra:.1f}" if ra is not None else "---"
+        dec_str = f"{dec:.1f}" if dec is not None else "---"
+        om = _read_float(r, "cone_Om0")
+        oe = _read_float(r, "cone_Om0_err")
+        om_str = (f"{om:.3f} $\\pm$ {oe:.3f}" if om is not None and oe
+                  else (f"{om:.3f}" if om is not None else "---"))
+        d_om = _read_float(r, "delta_Om0")
+        d_str = f"{d_om:+.3f}" if d_om is not None else "---"
+        nsig = _read_float(r, "gaussian_nsigma")
+        if nsig is not None and nsig >= 2.0:
+            n_flagged += 1
+        if ref_om is None:
+            ref_om, ref_oe = (_read_float(r, "ref_Om0"),
+                              _read_float(r, "ref_Om0_err"))
+            ref_lnz = _read_float(r, "ref_logz")
+        # Short id in the Cone column: the long descriptive label duplicates
+        # the R.A./Dec./N columns that follow it.
+        data_rows.append(
+            f"c{cone:02d} & {int(r['n_sne'])} & {ra_str} & "
+            f"{dec_str} & {r['cone_logz']:.2f} & {om_str} & {d_str} & "
+            f"{_tension_cell(nsig)}")
+
+    if ref_om is not None:
+        data_rows.append(r"\hline")
+        ref_om_str = (f"{ref_om:.3f} $\\pm$ {ref_oe:.3f}" if ref_oe
+                      else f"{ref_om:.3f}")
+        ref_lnz_str = f"{ref_lnz:.2f}" if ref_lnz is not None else "---"
+        data_rows.append(
+            rf"All sky (reference) & --- & --- & --- & {ref_lnz_str} & "
+            rf"{ref_om_str} & --- & ---")
+
+    notes = [
+        rf"Model: {_model_latex(combo)}. Each cone is an independently "
+        rf"identified sky pointing, refit on its own supernovae and compared "
+        rf"against the all-sky reference fit of the same model.",
+        r"Every fit here -- cones and reference alike -- uses a broad uniform "
+        r"prior on $\Omega_{\rm M0}$ rather than the informative publication "
+        r"prior. With the informative prior the prior, not the data, would set "
+        r"each cone's $\Omega_{\rm M0}$ and the cones would agree for the "
+        r"wrong reason.",
+        r"Tension is the weighted-posterior Gaussian statistic over all shared "
+        r"parameters. $\Delta \Omega_{\rm M0}$ is the shift relative to the "
+        r"reference; it is quoted without a significance because the cone "
+        r"supernovae are a subset of the reference sample, so the two "
+        r"uncertainties are correlated and a quadrature significance would be "
+        r"understated.",
+        rf"{n_flagged}/{len(sub)} cone(s) reach $2\sigma$ tension or above; "
+        rf"those are highlighted.",
+        r"$\ln Z$ is not comparable between cones -- each fits a different "
+        r"number of supernovae.",
+    ]
+
+    return _lt_wrap(
+        col_spec        = col_spec,
+        caption         = "Line-of-Sight (Drilling Cone) Check: Evidence and "
+                          "Recovered Cosmology per Sky Pointing "
+                          "(baseline model)",
+        label           = "tab:combo_cones",
+        col_header_line = col_header,
+        data_rows       = data_rows,
+        ncols           = NCOLS,
+        notes           = notes,
+    )
+
+
+# ===========================================================================
 # Preamble snippet
 # ===========================================================================
 
@@ -1554,79 +1982,232 @@ PREAMBLE_SNIPPET = r"""% ---- paste into your LaTeX preamble (before \begin{docu
 # CLI
 # ===========================================================================
 
+# The six tables the paper needs, in order. Used by --all and by --list-tables
+# so the set is defined ONCE rather than being re-listed in the help text, the
+# dispatcher and the docs separately.
+TABLE_SPECS = [
+    ("priors",       "a", "Parameter priors",
+     "priors_table.tex"),
+    ("iterations",   "b", "All publication-registry runs (iterations)",
+     "iterations_table.tex"),
+    ("evidence",     "c", "All publication-registry evidence",
+     "evidence_table.tex"),
+    ("extra-checks", "d", "extra_runners.py check evidence + host-match quality",
+     "extra_checks_table.tex"),
+    ("loo-zbins",    "e", "Leave-one-redshift-bin-out (baseline model only)",
+     "loo_zbins_table.tex"),
+    ("cones",        "f", "Drilling cones (baseline model only)",
+     "drilling_cones_table.tex"),
+]
+
+
 def _parse_args():
     p = argparse.ArgumentParser(
-        description="Auto-generate LaTeX tables from config.py / registry CSVs"
-    )
-    p.add_argument("--priors",     action="store_true")
-    p.add_argument("--iterations", action="store_true")
-    p.add_argument("--evidence",   action="store_true")
-    p.add_argument("--checks",     action="store_true")
+        description="Auto-generate LaTeX tables from config.py, the run "
+                    "registries and the check-driver output CSVs.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Tables (see --list-tables):\n" + "\n".join(
+            f"  {letter}) --{flag:<14s} {desc}"
+            for flag, letter, desc, _ in TABLE_SPECS))
+
+    p.add_argument("--all", action="store_true",
+                   help="Generate all six tables. With --out-dir, each is "
+                        "written to its own .tex file; otherwise all are "
+                        "printed in order.")
+    p.add_argument("--list-tables", action="store_true",
+                   help="List the tables and the file each --all run writes.")
+
+    # ---- the six paper tables ----
+    p.add_argument("--priors",     action="store_true",
+                   help="(a) Parameter prior specifications.")
+    p.add_argument("--iterations", action="store_true",
+                   help="(b) One row per publication-registry run.")
+    p.add_argument("--evidence",   action="store_true",
+                   help="(c) Evidence/AIC/BIC for the publication registry.")
+    p.add_argument("--extra-checks", action="store_true", dest="extra_checks",
+                   help="(d) extra_runners.py check evidence, sectioned by "
+                        "category, plus host-match quality from "
+                        "combo_ablation_checks.py.")
+    p.add_argument("--loo-zbins", action="store_true", dest="loo_zbins",
+                   help="(e) Leave-one-redshift-bin-out validation for the "
+                        "baseline model only.")
+    p.add_argument("--cones", action="store_true",
+                   help="(f) Per-sky-cone evidence and recovered cosmology "
+                        "for the baseline model only.")
+
+    # ---- legacy / supplementary tables ----
+    p.add_argument("--checks", action="store_true",
+                   help="Legacy checks table read from a run registry "
+                        "(superseded by --extra-checks, which reads "
+                        "extra_runners.py's own summary CSVs).")
     p.add_argument("--additional-checks", action="store_true",
                    dest="additional_checks",
-                   help="Generate the broad-uniform-prior additional-checks "
-                        "table from uniform_priors_check.py's registry "
-                        "(see --uniform-registry).")
+                   help="Broad-uniform-prior additional-checks table from "
+                        "uniform_priors_check.py's registry.")
     p.add_argument("--uniform-priors", action="store_true",
                    dest="uniform_priors",
-                   help="Generate the prior table for those uniform checks.")
-    p.add_argument("--host-error", action="store_true",
-                   dest="host_error",
-                   help="Generate the host measurement error systematic-check "
-                        "table from extra_runners.py's 'hosterr/' runs "
-                        "(see --checks-registry and --host-error-label).")
+                   help="Prior table for those uniform checks.")
+    p.add_argument("--host-error", action="store_true", dest="host_error",
+                   help="Standalone host measurement-error table read from a "
+                        "run registry (--extra-checks already includes this "
+                        "as a section).")
     p.add_argument("--host-error-label", default="best",
-                   dest="host_error_label",
-                   help="HOSTERR_BEST label used in the hosterr/ run tags "
-                        "(default: best).")
+                   dest="host_error_label")
     p.add_argument("--drilling-cones", action="store_true",
-                   help="Generate the drilling-cones systematic-check table "
-                        "from a CSV written by drilling_cones.py / "
-                        "drilling_cones_checks.py (see --drilling-cones-csv).")
-    p.add_argument("--preamble",   action="store_true")
-    p.add_argument("--registry",   default=None,
-                   help="Publication registry CSV (default: CONFIG['registry_file'])")
+                   help="Legacy single-run drilling-cones table from a "
+                        "drilling_cones.py CSV (superseded by --cones).")
+    p.add_argument("--preamble", action="store_true",
+                   help="Print the xcolor/longtable preamble snippet.")
+
+    # ---- input paths ----
+    p.add_argument("--registry", default=None,
+                   help="Publication registry CSV "
+                        "(default: CONFIG['registry_file']).")
     p.add_argument("--checks-registry", default="run_checks_registry.csv",
                    dest="checks_registry")
     p.add_argument("--uniform-registry",
                    default="run_publication_registry_uniform.csv",
-                   dest="uniform_registry",
-                   help="Registry written by uniform_priors_check.py "
-                        "(default: run_publication_registry_uniform.csv)")
+                   dest="uniform_registry")
+    p.add_argument("--extra-evidence-csv", default=None,
+                   dest="extra_evidence_csv",
+                   help=f"extra_runners.py evidence CSV "
+                        f"(default: {DEFAULT_EXTRA_EVIDENCE_CSV}).")
+    p.add_argument("--extra-hosterr-csv", default=None,
+                   dest="extra_hosterr_csv",
+                   help=f"extra_runners.py host-error CSV "
+                        f"(default: {DEFAULT_EXTRA_HOSTERR_CSV}).")
+    p.add_argument("--host-quality-csv", default=None, dest="host_quality_csv",
+                   help=f"combo_ablation_checks.py host-quality CSV "
+                        f"(default: {DEFAULT_COMBO_HOSTQUAL_CSV}).")
+    p.add_argument("--loo-csv", default=None, dest="loo_csv",
+                   help=f"combo_ablation_checks.py LOO CSV "
+                        f"(default: {DEFAULT_COMBO_LOO_CSV}).")
+    p.add_argument("--cones-csv", default=None, dest="cones_csv",
+                   help=f"combo_ablation_checks.py cones CSV "
+                        f"(default: {DEFAULT_COMBO_CONES_CSV}).")
+    p.add_argument("--cone-plan-csv", default=None, dest="cone_plan_csv",
+                   help=f"combo_ablation_checks.py cone plan CSV "
+                        f"(default: {DEFAULT_CONE_PLAN_CSV}).")
     p.add_argument("--drilling-cones-csv", default=None,
                    dest="drilling_cones_csv",
-                   help="Path to a '<output_prefix>_drilling_cones.csv' "
-                        "(required with --drilling-cones).")
-    p.add_argument("--out", default=None)
+                   help="Path for the legacy --drilling-cones table.")
+    p.add_argument("--combo", default=None,
+                   help="Combo tag for the baseline-only tables (e) and (f). "
+                        "Default: best_model.BEST_COMBO.")
+
+    # ---- output ----
+    p.add_argument("--out", default=None,
+                   help="Write everything to this single file.")
+    p.add_argument("--out-dir", default=None, dest="out_dir",
+                   help="With --all, write each table to its own .tex file "
+                        "in this directory.")
     return p.parse_args()
+
+
+def _table_builders(args):
+    """flag name -> zero-argument callable returning the table's LaTeX."""
+    return {
+        "priors":       lambda: generate_priors_table(),
+        "iterations":   lambda: generate_iterations_table(
+                            registry_path=args.registry),
+        "evidence":     lambda: generate_evidence_table(
+                            registry_path=args.registry),
+        "extra-checks": lambda: generate_extra_checks_table(
+                            evidence_csv=args.extra_evidence_csv,
+                            host_quality_csv=args.host_quality_csv,
+                            hosterr_csv=args.extra_hosterr_csv),
+        "loo-zbins":    lambda: generate_loo_zbins_table(
+                            loo_csv=args.loo_csv, combo=args.combo),
+        "cones":        lambda: generate_combo_cones_table(
+                            cones_csv=args.cones_csv,
+                            cone_plan_csv=args.cone_plan_csv,
+                            combo=args.combo),
+    }
+
 
 def main():
     args = _parse_args()
-    if not any([args.priors, args.iterations, args.evidence,
+
+    if args.list_tables:
+        print("Six paper tables (--all generates every one):\n")
+        for flag, letter, desc, fname in TABLE_SPECS:
+            print(f"  {letter}) --{flag:<14s} {desc}")
+            print(f"     {'':17s} --out-dir writes: {fname}")
+        return
+
+    # ---- --all: build each table independently ---------------------------
+    # Each is wrapped separately so one missing input CSV costs you that one
+    # table, not the whole run. Generating five of six and being told exactly
+    # which script to run for the sixth is far more useful than a traceback.
+    if args.all:
+        builders = _table_builders(args)
+        outputs, failures = [], []
+        for flag, letter, desc, fname in TABLE_SPECS:
+            try:
+                tex = builders[flag]()
+            except Exception as exc:
+                failures.append((letter, flag, f"{type(exc).__name__}: {exc}"))
+                continue
+            outputs.append((flag, letter, desc, fname, tex))
+
+        if args.out_dir:
+            import os
+            os.makedirs(args.out_dir, exist_ok=True)
+            for flag, letter, desc, fname, tex in outputs:
+                path = os.path.join(args.out_dir, fname)
+                with open(path, "w") as f:
+                    f.write(tex + "\n")
+                print(f"  [{letter}] {desc}\n      -> {path}")
+            combined = os.path.join(args.out_dir, "all_tables.tex")
+            with open(combined, "w") as f:
+                f.write(PREAMBLE_SNIPPET + "\n\n"
+                        + "\n\n".join(t for *_, t in outputs) + "\n")
+            print(f"\n  Combined (with preamble) -> {combined}")
+        else:
+            print(PREAMBLE_SNIPPET)
+            print("\n\n".join(t for *_, t in outputs))
+
+        if failures:
+            print(f"\n{len(failures)} table(s) could not be generated:",
+                  file=sys.stderr)
+            for letter, flag, err in failures:
+                print(f"  ({letter}) --{flag}: {err}", file=sys.stderr)
+        return
+
+    # ---- individual flags ------------------------------------------------
+    selected = [args.priors, args.iterations, args.evidence,
+                args.extra_checks, args.loo_zbins, args.cones,
                 args.checks, args.additional_checks, args.uniform_priors,
-                args.host_error, args.drilling_cones, args.preamble]):
-        print("Specify: --priors  --iterations  --evidence  --checks  "
-              "--additional-checks  --uniform-priors  --host-error  "
-              "--drilling-cones  --preamble")
+                args.host_error, args.drilling_cones, args.preamble]
+    if not any(selected):
+        print("Nothing selected. Use --all for the six paper tables, "
+              "--list-tables to see them, or -h for every flag.")
         sys.exit(1)
     if args.drilling_cones and not args.drilling_cones_csv:
-        print("--drilling-cones requires --drilling-cones-csv <path>")
+        print("--drilling-cones requires --drilling-cones-csv <path> "
+              "(or use --cones, which reads combo_ablation_checks.py output).")
         sys.exit(1)
 
+    builders = _table_builders(args)
     parts = []
     if args.preamble:
         parts.append(PREAMBLE_SNIPPET)
     if args.priors:
-        parts.append(generate_priors_table())
+        parts.append(builders["priors"]())
     if args.iterations:
-        parts.append(generate_iterations_table(registry_path=args.registry))
+        parts.append(builders["iterations"]())
     if args.evidence:
-        parts.append(generate_evidence_table(registry_path=args.registry))
+        parts.append(builders["evidence"]())
+    if args.extra_checks:
+        parts.append(builders["extra-checks"]())
+    if args.loo_zbins:
+        parts.append(builders["loo-zbins"]())
+    if args.cones:
+        parts.append(builders["cones"]())
     if args.checks:
         parts.append(generate_checks_table(
             checks_registry_path=args.checks_registry,
-            pub_registry_path=args.registry,
-        ))
+            pub_registry_path=args.registry))
     if args.uniform_priors:
         parts.append(generate_uniform_priors_table())
     if args.additional_checks:

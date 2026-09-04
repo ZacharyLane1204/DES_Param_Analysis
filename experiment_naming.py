@@ -80,7 +80,7 @@ import json
 CATEGORY_PREFIXES = {
     "baseline", "cosmo", "nuisance", "sncolour", "stretch",
     "host_col", "mass", "ssfr", "evolution", "interaction",
-    "checks", "combo", "uniformcheck", "hosterr",
+    "checks", "combo", "uniformcheck", "hosterr", "z_uncert",
 }
 
 # model_key -> (value that makes the shape parameter below a pure

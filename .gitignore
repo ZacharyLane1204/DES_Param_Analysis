@@ -7,3 +7,12 @@ Plots/
 uniform_checks/
 __pycache__/
 *.pyc
+
+# Output directories written by the parallel check drivers
+combo_ablation/
+z_uncertainty/
+extra_runners/
+tables/
+
+# Registry lock files (fcntl advisory locks, see run.py's update_registry)
+*.csv.lock
