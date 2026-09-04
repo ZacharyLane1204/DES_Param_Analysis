@@ -66,13 +66,42 @@ TERMS = {
         "param_overrides": {},
     },
 
+    # -- No host stellar mass profile ---------------------------------------
+    # MUST be named explicitly in a combo to take effect: CONFIG["model"]
+    # defaults to mass="step", so a combo that simply omits any mass term
+    # silently inherits the hard step -- the form the sweep disfavours by
+    # ~9 lnZ. Naming "mass_none" makes "there is deliberately no mass term"
+    # explicit in both the config and the run tag.
+    #
+    # experiment_naming.ExperimentRegistry auto-deactivates gamma when
+    # mass="none" (gamma is mass's amplitude and would otherwise be an
+    # unconstrained direction), so no param_override is needed here.
+    #
+    # NOTE the knock-on effect on gamma_alpha, which core.py applies as
+    # gamma_alpha * x1_eff * G (core.py:1185) where
+    #     G = gamma/2*L + eta*H + xi_mass_col*L*H + zeta*S + ...
+    # With mass="none" the mass profile L is identically zero, so G reduces
+    # to eta*H + zeta*S. A combo that pairs "interaction_gammaalpha" with
+    # "mass_none" and activates NEITHER zeta (ssfr) NOR eta (host_colour)
+    # therefore has G == 0 identically, which makes gamma_alpha a perfectly
+    # flat, entirely unconstrained direction: it cannot change the
+    # likelihood at all and the run reports an lnZ numerically identical to
+    # the same model without it. That is why the two gamma_alpha combos
+    # below that have no other host term use "mass_linear" instead.
+    "mass_none": {
+        "model": {"mass": "none"},
+        "param_overrides": {},
+    },
+
     # -- SN colour law ------------------------------------------------------
     # Best sn_colour form in the sweep, measured on the OLD baseline
-    # (mass=step, host_colour=linear): dlnZ = +3.54. Whether it survives on
-    # top of ssfr_tanh + mass_linear is exactly what the ladder below tests.
+    # (mass=step, host_colour=linear): dlnZ = +3.54. Whether it survives
+    # alongside the other terms is exactly what the ladder below tests.
     # sn_tau is the break width; active=True means the sampler chooses it and
-    # "fixed" is ignored (see config.py's spec docstring).
-    "sncolour_softbroken": {
+    # "fixed" is ignored (see config.py's spec docstring). Named with the
+    # "_sntau" suffix to match the registry run name
+    # sncolour/sncolour_softbroken_sntau it was measured under.
+    "sncolour_softbroken_sntau": {
         "model": {"sn_colour": "softbroken"},
         "param_overrides": {"sn_tau": {"active": True, "fixed": None}},
     },
@@ -81,13 +110,21 @@ TERMS = {
     # Best interaction term in the sweep: dlnZ = +2.02 on the old baseline.
     # Every other interaction (beta_gamma, beta_alpha, the three-way) is
     # DISFAVOURED. Again, measured pre-ssfr -- the ladder re-tests it.
+    #
+    # REQUIRES a non-zero host term to be identifiable at all: core.py:1185
+    # applies it as gamma_alpha * x1_eff * G, so any combo containing this
+    # term must also contain something that makes G non-zero -- "mass_linear"
+    # (via gamma/2*L), "ssfr_tanh" (via zeta*S) or a host_colour term with
+    # eta activated (via eta*H). See the "mass_none" note above.
     "interaction_gammaalpha": {
         "model": {},
         "param_overrides": {"gamma_alpha": {"active": True, "fixed": None}},
     },
 
     # -- Host colour profile (falsification control) ------------------------
-    # Included so the ladder can DISPROVE it rather than silently omit it.
+    # Kept defined but NOT used in the current COMBOS ladder (that ladder is
+    # a factorial over the other three terms). Add it to a combo when you
+    # want to DISPROVE host colour rather than silently omit it.
     # eta is host_colour's amplitude and C0 its centre; both default to
     # active=False with a non-zero "fixed", so turning on model["host_colour"]
     # without activating them applies an UNFITTED correction the sampler never
@@ -110,27 +147,48 @@ TERMS = {
 # Any subset of TERMS.keys() is valid; list order doesn't matter, only
 # membership.
 #
-# The ladder is built so that entry [1] -- ssfr_tanh + mass_linear, the
-# publication sweep's outright winner at dlnZ = +12.94 -- is the REFERENCE,
-# and entries [2]..[5] each add exactly ONE further term to it. That makes
-# every delta a clean one-term test against the current champion rather than
-# against the old baseline, which is the only way to find out whether
-# sncolour_softbroken (+3.54) and interaction_gammaalpha (+2.02) still pay
-# for themselves once the sSFR and mass terms have already absorbed most of
-# the host correlation.
+# DESIGN: this is a 3-term factorial over {ssfr_tanh,
+# sncolour_softbroken_sntau, interaction_gammaalpha} -- the three requested
+# pairs, PLUS the singletons and empty reference each pair needs to be
+# interpretable. A pair's lnZ on its own says nothing; only
+#     dlnZ(pair) - dlnZ(single A) - dlnZ(single B)
+# tells you whether two terms are synergistic, redundant, or independent,
+# and that requires the singletons and the reference to be fitted under the
+# SAME background model.
 #
-# Six entries is deliberate: combo_ablation_checks.py runs a fit PLUS a LOO
-# z-bin CV (n_bins refits), a strict-host-match refit and a drilling-cones
-# refit per cone for EVERY entry, so each line here is of order ten nested
-# sampling runs, not one.
+# Because gamma_alpha needs a non-zero host term to be identifiable (see the
+# "mass_none" and "interaction_gammaalpha" notes above), the factorial splits
+# into two self-contained blocks, each internally matched:
+#
+#   BLOCK A (mass="none") -- the sSFR profile is the only host term, so
+#   G = zeta*S and gamma_alpha is identifiable whenever ssfr_tanh is present.
+#   Covers the ssfr_tanh+sncolour and ssfr_tanh+gamma_alpha pairs.
+#
+#   BLOCK B (mass="linear") -- supplies G = gamma/2*L so gamma_alpha is
+#   identifiable without an sSFR term. Covers the gamma_alpha+sncolour pair,
+#   which would be degenerate under mass="none".
+#
+# Deltas are only meaningful WITHIN a block (blocks differ in background
+# model, so their absolute lnZ are not comparable term-for-term).
+#
+# Nine entries is deliberate but not cheap: combo_ablation_checks.py runs a
+# fit PLUS a LOO z-bin CV (n_bins refits), a strict-host-match refit and a
+# refit per drilling cone for EVERY entry, so each line here is of order ten
+# nested sampling runs, not one. Use --only to run a block at a time.
 COMBOS = [
-    ["mass_linear"],                                                  # floor
-    ["mass_linear", "ssfr_tanh"],                                     # REFERENCE
-    ["mass_linear", "ssfr_tanh", "sncolour_softbroken"],              # +colour
-    ["mass_linear", "ssfr_tanh", "interaction_gammaalpha"],           # +interaction
-    ["mass_linear", "ssfr_tanh", "sncolour_softbroken",
-     "interaction_gammaalpha"],                                       # full combo
-    ["mass_linear", "ssfr_tanh", "host_colour_tanh"],                 # falsification
+    # ---- BLOCK A: mass="none" -------------------------------------------
+    ["mass_none"],                                                   # A ref
+    ["mass_none", "ssfr_tanh"],                                      # A single
+    ["mass_none", "sncolour_softbroken_sntau"],                      # A single
+    ["mass_none", "ssfr_tanh", "sncolour_softbroken_sntau"],         # A PAIR 1
+    ["mass_none", "ssfr_tanh", "interaction_gammaalpha"],            # A PAIR 2
+
+    # ---- BLOCK B: mass="linear" (gamma_alpha needs G != 0) --------------
+    ["mass_linear"],                                                 # B ref
+    ["mass_linear", "interaction_gammaalpha"],                       # B single
+    ["mass_linear", "sncolour_softbroken_sntau"],                    # B single
+    ["mass_linear", "interaction_gammaalpha",
+     "sncolour_softbroken_sntau"],                                   # B PAIR 3
 ]
 
 # ===========================================================================
@@ -142,11 +200,18 @@ COMBOS = [
 #
 # Set to the publication sweep's outright winner
 # (ssfr/ssfr_tanh_hcol_none_mass_linear, lnZ = -439.837, dlnZ = +12.94 over
-# baseline, and the best of all 485 runs). Once combo_ablation_checks.py has
-# reported, promote the winning ladder entry here -- e.g. append
-# "sncolour_softbroken" and/or "interaction_gammaalpha" IF and ONLY IF their
-# ladder entry beats ["mass_linear", "ssfr_tanh"] by more than the combined
-# logZ_err (~0.1, so require dlnZ > ~1 to be worth the extra parameter).
+# baseline, and the best of all 485 runs -- still the champion after the
+# x1_tau fix, which changed only the stretch/* family).
+#
+# NOTE this is deliberately NOT one of the COMBOS entries above. COMBOS is an
+# exploratory factorial that answers "do these three terms interact?"; this
+# is the model the paper actually reports and that extra_runners.py's
+# HOSTERR_BEST and z_uncertainty_check.py both build from. Promote a ladder
+# entry here only if it beats mass_linear+ssfr_tanh by more than the combined
+# logZ_err (~0.1, so require dlnZ > ~1 to justify the extra parameter), and
+# remember Block A's entries are fitted on mass="none" so their lnZ is not
+# directly comparable to this model's -- refit the winner with mass="linear"
+# before promoting it.
 BEST_COMBO = ["mass_linear", "ssfr_tanh"]
 
 

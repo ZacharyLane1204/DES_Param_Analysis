@@ -800,11 +800,20 @@ _VARIANT_LABELS = {
 # model options are introduced — no need to enumerate every combination.
 _TOKEN_PHRASES = [
     # --- parameter / interaction toggles ---
+    # "interaction_gammaalpha" is best_model.py's TERMS key (so it appears in
+    # combo/... run tags); "gamma_alpha" is the raw parameter name used by
+    # experiment_runner.py's tags. Both must be listed or the unmatched
+    # remainder gets dumped into the table as escaped raw text.
+    ("interaction_gammaalpha", r"$\gamma_\alpha^{}$"),
     ("gamma_alpha",        r"$\gamma_\alpha^{}$"),
     ("beta_alpha",         r"$\beta_\alpha^{}$"),
     ("beta_gamma",         r"$\beta_\gamma^{}$"),
 
     # --- SN colour models (sncolour_<model>) ---
+    # Two spellings for the same model: experiment_runner.py writes
+    # "sncolour_softbrokensntau", best_model.py's TERMS key is
+    # "sncolour_softbroken_sntau".
+    ("sncolour_softbroken_sntau", r"softbroken $\tau_S^{}$"),
     ("sncolour_softbrokensntau", r"softbroken $\tau_S^{}$"),
     ("sncolour_asymm_gauss_weight", r"gauss.\ weight colour"),
     ("sncolour_softbroken",      r"softbroken colour"),
