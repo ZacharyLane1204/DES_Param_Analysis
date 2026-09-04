@@ -138,6 +138,22 @@ TERMS = {
         "param_overrides": {"eta": {"active": True, "fixed": None},
                             "C0":  {"active": True, "fixed": None}},
     },
+
+    # --- "mass_step" -----------------------------------------------------
+    # The classic single mass step. This is CONFIG's default (config.py has
+    # model["mass"] = "step"), so listing it changes nothing -- it exists to
+    # be NAMEABLE, so the published baseline can appear in COMBOS as an
+    # explicit entry rather than as a bare [] that reads like an oversight.
+    #   baseline           lnZ = -452.777   <- every dlnZ in the sweep is
+    #                                          quoted against this run
+    #   mass/mass_linear   lnZ = -447.335   (dlnZ = +5.44)
+    # Keep this in COMBOS: it is the anchor that makes the ablation ladder's
+    # numbers line up with the dlnZ values already quoted in the paper from
+    # run_publication_registry.csv.
+    "mass_step": {
+        "model": {"mass": "step"},
+        "param_overrides": {},
+    },
 }
 
 # ===========================================================================
@@ -147,59 +163,89 @@ TERMS = {
 # Any subset of TERMS.keys() is valid; list order doesn't matter, only
 # membership.
 #
-# DESIGN: this is a 3-term factorial over {ssfr_tanh,
-# sncolour_softbroken_sntau, interaction_gammaalpha} -- the three requested
-# pairs, PLUS the singletons and empty reference each pair needs to be
-# interpretable. A pair's lnZ on its own says nothing; only
-#     dlnZ(pair) - dlnZ(single A) - dlnZ(single B)
-# tells you whether two terms are synergistic, redundant, or independent,
-# and that requires the singletons and the reference to be fitted under the
-# SAME background model.
+# WHAT THIS LADDER IS FOR
+# -----------------------
+# The publication sweep (run_publication_registry.csv, 486 runs) varied ONE
+# family at a time against the published baseline (mass="step", lnZ =
+# -452.777). Read family by family, the terms that actually bought anything
+# were:
 #
-# Because gamma_alpha needs a non-zero host term to be identifiable (see the
-# "mass_none" and "interaction_gammaalpha" notes above), the factorial splits
-# into two self-contained blocks, each internally matched:
+#   term                                     best run in family        dlnZ
+#   ---------------------------------------  ------------------------  -----
+#   ssfr_tanh (with mass="linear")           ssfr_tanh_hcol_none_...  +12.94
+#   host_colour sigmoid_C0 (mass="linear")   hcol_sigmoid_C0_...       +6.62
+#   mass="linear"  (the host correction)     mass/mass_linear          +5.44
+#   sncolour_softbroken_sntau                sncolour_softbroken_...   +3.54
+#   interaction_gammaalpha                   interaction_gammaalpha    +2.02
+#   stretch (any variant)                    stretch_powerlaw          +0.05
+#   z-evolution (any variant)                zevolve_log_g             -3.93
 #
-#   BLOCK A (mass="none") -- the sSFR profile is the only host term, so
-#   G = zeta*S and gamma_alpha is identifiable whenever ssfr_tanh is present.
-#   Covers the ssfr_tanh+sncolour and ssfr_tanh+gamma_alpha pairs.
+# Stretch and z-evolution bought nothing and are excluded. The remaining
+# improvements were each measured ALONE, so the open question -- and the only
+# question this ladder exists to answer -- is whether they still help ON TOP
+# OF EACH OTHER, or whether they are three different parameterisations of the
+# same one physical effect and therefore redundant.
 #
-#   BLOCK B (mass="linear") -- supplies G = gamma/2*L so gamma_alpha is
-#   identifiable without an sSFR term. Covers the gamma_alpha+sncolour pair,
-#   which would be degenerate under mass="none".
+# DESIGN: a complete 2^3 factorial in
+#     {ssfr_tanh, sncolour_softbroken_sntau, interaction_gammaalpha}
+# on a FIXED mass="linear" host correction, plus the published mass="step"
+# baseline as an anchor.
 #
-# Deltas are only meaningful WITHIN a block (blocks differ in background
-# model, so their absolute lnZ are not comparable term-for-term).
+# Two properties make this readable, and both were missing before:
 #
-# Nine entries is deliberate but not cheap: combo_ablation_checks.py runs a
-# fit PLUS a LOO z-bin CV (n_bins refits), a strict-host-match refit and a
-# refit per drilling cone for EVERY entry, so each line here is of order ten
-# nested sampling runs, not one. Use --only to run a block at a time.
+#  1. ONE background model. Every factorial entry carries mass="linear", so
+#     all eight lnZ values are directly comparable and every interaction
+#         dlnZ(A+B) - dlnZ(A) - dlnZ(B)
+#     is a well-defined number. The previous version split the ladder across
+#     mass="none" and mass="linear" blocks, which meant the headline pairwise
+#     comparisons the analysis is about -- sncolour vs gamma_alpha vs ssfr --
+#     were being read across two different background models where the
+#     absolute lnZ are not comparable.
+#
+#  2. mass="linear" IS "the host correction". gamma_alpha is a gamma*alpha
+#     cross term and is only identifiable when the host term G is non-zero
+#     (see the "interaction_gammaalpha" note above), so pairing it with a
+#     live mass term is not a convenience, it is a requirement. Holding
+#     mass="linear" fixed for the whole factorial satisfies that for every
+#     entry at once and removes the need for the old two-block split.
+#
+# Reading the table: with dlnZ measured against entry [1] (mass_linear),
+#     dlnZ(row 5) - dlnZ(row 2) - dlnZ(row 3)   -> ssfr x sncolour
+#     dlnZ(row 6) - dlnZ(row 2) - dlnZ(row 4)   -> ssfr x gamma_alpha
+#     dlnZ(row 7) - dlnZ(row 3) - dlnZ(row 4)   -> sncolour x gamma_alpha
+# A result near zero means the two terms are independent (keep both if each
+# is individually favoured); strongly negative means they are redundant --
+# they are fitting the same feature, and you should keep only the cheaper
+# one. Row 8 tests all three together.
+#
+# Entry [0] (mass_step) is not part of the factorial. It is there so the
+# ladder's absolute lnZ can be tied back to the +5.44 / +3.54 / +2.02 numbers
+# already quoted in the paper, which are all measured against mass="step".
+#
+# COST: combo_ablation_checks.py runs, for EVERY entry here, a reference fit
+# + a strict-host-match refit + n_bins LOO refits + one refit per drilling
+# cone. That is of order 10-12 nested sampling runs per line, so this file's
+# length multiplies by ~11 downstream. Nine entries is about the largest
+# ladder that stays tractable; use --only or --skip-drilling-cones to run it
+# in pieces.
 COMBOS = [
-    # ---- BLOCK A: mass="none" -------------------------------------------
-    ["mass_none"],                                                   # A ref
-    ["mass_none", "ssfr_tanh"],                                      # A single
-    ["mass_none", "sncolour_softbroken_sntau"],                      # A single
-    ["mass_none", "ssfr_tanh", "sncolour_softbroken_sntau"],         # A PAIR 1
-    ["mass_none", "ssfr_tanh", "interaction_gammaalpha"],            # A PAIR 2
+    # ---- published baseline anchor (NOT part of the factorial) ----------
+    ["mass_step"],                                                   # anchor
 
-    # ---- BLOCK B: mass="linear" (gamma_alpha needs G != 0) --------------
-    ["mass_linear"],                                                 # B ref
-    ["mass_linear", "ssfr_tanh"],                                    # B single
-    ["mass_linear", "interaction_gammaalpha"],                       # B single
-    ["mass_linear", "sncolour_softbroken_sntau"],                    # B single
-    ["mass_linear", "interaction_gammaalpha",
-     "sncolour_softbroken_sntau"],                                   # B PAIR 3
+    # ---- 2^3 factorial on the mass="linear" host correction -------------
+    ["mass_linear"],                                                 # [1] ref
+    ["mass_linear", "ssfr_tanh"],                                    # [2] A
+    ["mass_linear", "sncolour_softbroken_sntau"],                    # [3] B
+    ["mass_linear", "interaction_gammaalpha"],                       # [4] C
+    ["mass_linear", "ssfr_tanh",
+     "sncolour_softbroken_sntau"],                                   # [5] AB
+    ["mass_linear", "ssfr_tanh",
+     "interaction_gammaalpha"],                                      # [6] AC
+    ["mass_linear", "sncolour_softbroken_sntau",
+     "interaction_gammaalpha"],                                      # [7] BC
+    ["mass_linear", "ssfr_tanh", "sncolour_softbroken_sntau",
+     "interaction_gammaalpha"],                                      # [8] ABC
 ]
-
-# BEST_COMBO below MUST be one of the entries above. Every "all competing
-# models" driver (combo_ablation_checks.py, z_uncertainty_check.py,
-# extra_runners.py) iterates COMBOS, so a BEST_COMBO that is not in COMBOS
-# would be the one model the paper actually reports and the ONLY model that
-# never gets a host-quality check, a leave-one-z-bin-out validation, a
-# drilling-cone check, a redshift-uncertainty check or a wCDM/subsample
-# refit. That was the case before ["mass_linear", "ssfr_tanh"] was added to
-# Block B above. The assertion at the bottom of this module enforces it.
 
 # ===========================================================================
 # 3. BEST_COMBO  —  the single chosen FINAL model
@@ -208,21 +254,39 @@ COMBOS = [
 # z_uncertainty_check.py's default model are both derived from this list
 # via merge_terms() below -- updating it here updates both automatically.
 #
-# Set to the publication sweep's outright winner
-# (ssfr/ssfr_tanh_hcol_none_mass_linear, lnZ = -439.837, dlnZ = +12.94 over
-# baseline, and the best of all 485 runs -- still the champion after the
-# x1_tau fix, which changed only the stretch/* family).
+# CURRENT VALUE IS PROVISIONAL. It is set to the publication sweep's outright
+# winner (ssfr/ssfr_tanh_hcol_none_mass_linear, lnZ = -439.837, dlnZ = +12.94
+# over the mass="step" baseline, best of all 486 runs and still the champion
+# after the x1_tau fix, which touched only the stretch/* family). But that
+# sweep never fitted ssfr_tanh together with sncolour_softbroken_sntau or
+# with interaction_gammaalpha, which is exactly what COMBOS above now tests.
+# The factorial can therefore legitimately unseat this entry -- that is the
+# point of running it.
 #
-# NOTE this is now ALSO one of the COMBOS entries above (Block B "single").
-# It has to be: every driver that runs "all competing models" iterates COMBOS,
-# so a BEST_COMBO outside that list would be the single model the paper
-# reports and the only one never checked for host-match quality, z-bin
-# stability, line-of-sight systematics, redshift uncertainty or subsample
-# robustness. Promote a different ladder entry here only if it beats
-# mass_linear+ssfr_tanh by more than the combined logZ_err (~0.1, so require
-# dlnZ > ~1 to justify an extra parameter), and remember Block A's entries are
-# fitted on mass="none" so their lnZ is not directly comparable to this
-# model's -- refit the winner with mass="linear" before promoting it.
+# HOW TO PROMOTE A NEW WINNER, once combo_ablation_checks.py has run:
+#   1. Read combo_ablation/combo_ablation_summary.csv. All nine entries share
+#      one background model, so their lnZ ARE directly comparable; just take
+#      the largest.
+#   2. Require dlnZ > ~1 over the current BEST_COMBO before adding parameters.
+#      logZ_err is ~0.1 per run, so ~0.14 on a difference -- a 0.3 lnZ "win"
+#      is noise, and Jeffreys only calls dlnZ > 1 "substantial".
+#   3. Check the interaction term, not just the total. If AB beats A and B
+#      individually but dlnZ(AB) - dlnZ(A) - dlnZ(B) is strongly negative,
+#      the two terms are fitting the same feature; prefer the cheaper single.
+#   4. Confirm the winner survives combo_ablation's host-quality refit and
+#      its LOO z-bin folds before adopting it. A model that wins on lnZ but
+#      swings Om0 between z-bins is not the model you want in the paper.
+#   5. Edit this list, then re-run everything downstream of it. Every driver
+#      derives its "best model" from here.
+#
+# BEST_COMBO MUST be one of the COMBOS entries above. Every "all competing
+# models" driver (combo_ablation_checks.py, z_uncertainty_check.py,
+# extra_runners.py) iterates COMBOS, so a BEST_COMBO outside that list would
+# be the one model the paper actually reports and the ONLY model that never
+# gets a host-match-quality check, a leave-one-z-bin-out validation, a
+# drilling-cone check, a redshift-uncertainty check or a wCDM/subsample
+# refit. That was the case before it was added. The assertion at the bottom
+# of this module enforces it.
 BEST_COMBO = ["mass_linear", "ssfr_tanh"]
 
 

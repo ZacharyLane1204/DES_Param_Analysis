@@ -40,9 +40,21 @@ The precision of an estimate of a standard deviation from N samples is roughly
 
 The headline statistic is compared against a 20% threshold, so an N whose own
 uncertainty is 27% cannot resolve it -- N=8 (the old default) was too noisy to
-support the conclusion it was being used to draw. N=24 is the default here: 15%
-precision, and 9 models x 25 fits = 225 runs, which parallelises comfortably.
-Use --n-realizations 8 for a smoke test, 48 if a referee wants ~10%.
+support the conclusion it was being used to draw.
+
+N=64 is the default here: 9% precision, comfortably inside the 20% threshold,
+so a model that lands near the boundary is still classified reliably rather
+than by the luck of the draw. Cost is 9 models x 65 fits = 585 runs. These are
+the cheapest fits in the pipeline -- one sampler call each, no LOO folds, no
+cones -- and they parallelise perfectly, so this is a wall-clock decision, not
+a feasibility one.
+
+Cheaper options, all valid, all supported:
+  --n-realizations 8                smoke test (27%, do not quote)
+  --n-realizations 24               15%, 225 runs
+  --best-model-only                 65 runs at N=64, if only the adopted
+                                    model's redshift systematic is going in
+                                    the paper
 
 DOUBLE-COUNTING PECULIAR VELOCITY
 ---------------------------------
@@ -105,7 +117,7 @@ OUT_DIR = "z_uncertainty"
 REGISTRY = "run_z_uncertainty_registry.csv"
 
 # See "CHOOSING N" in the module docstring.
-DEFAULT_N_REALIZATIONS = 24
+DEFAULT_N_REALIZATIONS = 64
 
 # Headline threshold: MC scatter this large a fraction of the posterior width
 # means redshift uncertainty is a non-negligible part of the error budget.
