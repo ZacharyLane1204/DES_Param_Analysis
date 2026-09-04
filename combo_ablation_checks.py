@@ -408,14 +408,25 @@ def derive_sample_plan(base_cfg, n_bins, eps_deg, min_samples, min_fit_size,
 
 
 def build_jobs(combos, plan, templates, registry_file, do_host_quality,
-               do_loo, do_cones, min_fit_size):
-    """Every Phase-1 sampling job, plus the bookkeeping needed for Phase 2."""
+               do_loo, do_cones, min_fit_size, deep_combos=None):
+    """Every Phase-1 sampling job, plus the bookkeeping needed for Phase 2.
+
+    deep_combos
+        Optional set of combo tags. When given, only these combos receive the
+        expensive per-model checks (LOO folds and drilling cones); every combo
+        still gets its main fit and its host-quality pair. This is the main
+        cost lever: LOO and cones together are ~n_bins + n_cones + 1 fits per
+        model and dominate the job count, while the main fit is the only one
+        needed to RANK the ladder. Rank first on all of them, then validate
+        the two or three that are actually in contention.
+    """
     registry = ExperimentRegistry(CONFIG, DEFAULT_PARAM_SPECS)
     jobs, meta = [], []
     n_full = plan["n_full"]
 
     for term_names in combos:
         ctag = combo_tag(term_names)
+        deep = deep_combos is None or ctag in deep_combos
         cfg = build_combo_cfg(term_names, registry_file, registry, templates)
 
         # ---- 1. main fit ----
@@ -441,7 +452,7 @@ def build_jobs(combos, plan, templates, registry_file, do_host_quality,
                              "tag": hq["run_tag"]})
 
         # ---- 3. LOO redshift bins ----
-        if do_loo:
+        if do_loo and deep:
             for b in plan["zbins"]:
                 lcfg = _with(cfg, run_tag=_tag("loo_zbin", templates,
                                                combo=ctag, bin=b["fold"]))
@@ -456,7 +467,7 @@ def build_jobs(combos, plan, templates, registry_file, do_host_quality,
                              "fold": b["fold"], "tag": lcfg["run_tag"]})
 
         # ---- 4. drilling cones (broad-uniform Om0, own registry) ----
-        if do_cones and plan["cones"]:
+        if do_cones and deep and plan["cones"]:
             dc_specs = copy.deepcopy(cfg["param_specs"])
             for name, upd in broad_uniform_om0_overrides().items():
                 dc_specs[name].update(upd)
@@ -502,7 +513,8 @@ def run_combo_checks(combos=None, only=None, registry_file=REGISTRY_MAIN,
                      section_dirs=False, degeneracy_threshold=0.85,
                      loo_n_bins=4, run_host_quality=True, run_loo=True,
                      run_drilling_cones=True, cones_eps_deg=None,
-                     cones_min_samples=None, cones_min_fit_size=None):
+                     cones_min_samples=None, cones_min_fit_size=None,
+                     deep_only=None):
     """Run the full ablation pass. Returns a dict of summary DataFrames."""
     combos = combos if combos is not None else COMBOS
     if only:
@@ -511,6 +523,15 @@ def run_combo_checks(combos=None, only=None, registry_file=REGISTRY_MAIN,
         if not combos:
             raise SystemExit(f"No combo matched --only {sorted(only)}. "
                              f"Available: {[combo_tag(c) for c in COMBOS]}")
+
+    deep_combos = None
+    if deep_only:
+        deep_combos = set(deep_only)
+        known = {combo_tag(c) for c in combos}
+        unknown = deep_combos - known
+        if unknown:
+            raise SystemExit(f"--deep-only names combos that are not being "
+                             f"run: {sorted(unknown)}. Available: {sorted(known)}")
 
     templates = TAG_TEMPLATES_SECTIONED if section_dirs else TAG_TEMPLATES
     os.makedirs(out_dir, exist_ok=True)
@@ -535,8 +556,16 @@ def run_combo_checks(combos=None, only=None, registry_file=REGISTRY_MAIN,
     for c in plan["cones"]:
         print(f"      {c['label']}{'' if c['fitted'] else '   [SKIPPED: too few]'}")
 
+    if deep_combos is not None:
+        print(f"\n  Deep checks (LOO + cones) restricted to "
+              f"{len(deep_combos)}/{len(combos)} combo(s):")
+        for t in sorted(deep_combos):
+            print(f"      {t}")
+        print("  All combos still get their main fit and host-quality pair.")
+
     jobs, meta = build_jobs(combos, plan, templates, registry_file,
-                            run_host_quality, run_loo, run_drilling_cones, minfit)
+                            run_host_quality, run_loo, run_drilling_cones,
+                            minfit, deep_combos=deep_combos)
     meta.to_csv(os.path.join(out_dir, "job_plan.csv"), index=False)
 
     # ---- Phase 1 ----
@@ -695,14 +724,39 @@ def _assemble(combos, meta, meta2, by_tag, by_label2, plan, templates, out_dir):
                 d_err = np.hypot(fit.get(f"{p}_std", np.nan),
                                  ref.get(f"{p}_std", np.nan))
                 row[f"delta_{p}"] = fit.get(f"{p}_mean", np.nan) - ref.get(f"{p}_mean", np.nan)
-                # Cone and reference are NOT independent -- the cone's SNe are
-                # a subset of the reference's -- so this quadrature error bar
-                # OVERSTATES the uncertainty on the difference and the
-                # resulting sigma is conservative. compare_two_runs'
-                # gaussian_nsigma is the statistic to quote; this is for
-                # direction and magnitude.
-                row[f"delta_{p}_nsigma"] = (row[f"delta_{p}"] / d_err
-                                            if d_err and np.isfinite(d_err) else np.nan)
+                # ---- error on the difference: two ways, both reported -----
+                # The cone's SNe are a SUBSET of the reference's, so the two
+                # posteriors are positively correlated and the naive
+                # quadrature sum sqrt(s_cone^2 + s_ref^2) is the WRONG error
+                # on their difference. It is too large, so the sigma it gives
+                # is too small and a real line-of-sight offset can hide in it.
+                #
+                # For nested samples where the subset's information is part
+                # of the reference's, the standard result is
+                #     Var(theta_sub - theta_ref) = s_sub^2 - s_ref^2
+                # (Var of the difference between an estimator and a more
+                # precise estimator that CONTAINS it -- the cross term
+                # cancels the smaller variance rather than adding to it).
+                # That is _nsigma below, and it is the one to quote.
+                # _nsigma_quad is kept only because it is what a reader will
+                # compute by hand from the four columns above and wonder why
+                # it disagrees.
+                #
+                # abs() guards the case s_ref > s_cone, which is unphysical
+                # under nesting and means one of the two chains has not
+                # converged; it is flagged rather than silently NaN'd.
+                s_c = fit.get(f"{p}_std", np.nan)
+                s_r = ref.get(f"{p}_std", np.nan)
+                var_d = (s_c ** 2 - s_r ** 2) if (np.isfinite(s_c)
+                                                  and np.isfinite(s_r)) else np.nan
+                row[f"delta_{p}_var_negative"] = bool(np.isfinite(var_d)
+                                                      and var_d <= 0)
+                sd = np.sqrt(abs(var_d)) if np.isfinite(var_d) else np.nan
+                row[f"delta_{p}_err"] = sd
+                row[f"delta_{p}_nsigma"] = (row[f"delta_{p}"] / sd
+                                            if sd and np.isfinite(sd) else np.nan)
+                row[f"delta_{p}_nsigma_quad"] = (row[f"delta_{p}"] / d_err
+                                                 if d_err and np.isfinite(d_err) else np.nan)
             cone_rows.append(row)
     cones = pd.DataFrame(cone_rows)
     if len(cones):
@@ -842,6 +896,18 @@ def _parse_args():
                    help="File each check into its own subdirectory "
                         "(<output_dir>/combo/host_qual/... etc.) instead of "
                         "prefixing the run name.")
+    p.add_argument("--deep-only", default=None,
+                   help="Comma-separated combo tags that should receive the "
+                        "EXPENSIVE checks (LOO z-bins and drilling cones). "
+                        "Every combo still gets its main fit and its "
+                        "host-quality pair, so the ladder is still fully "
+                        "ranked. LOO + cones are ~n_bins + n_cones + 1 fits "
+                        "per model and dominate the total, so restricting "
+                        "them to the two or three models actually in "
+                        "contention is the cheapest large saving available. "
+                        "Suggested two-pass use: run --fits-only over "
+                        "everything, read the ranking, then re-run with "
+                        "--deep-only <winner>,<runner-up>,mass_linear.")
     p.add_argument("--skip-host-quality", action="store_true")
     p.add_argument("--skip-loo", action="store_true")
     p.add_argument("--skip-drilling-cones", action="store_true")
@@ -877,6 +943,8 @@ if __name__ == "__main__":
         run_host_quality=not (args.skip_host_quality or skip_all),
         run_loo=not (args.skip_loo or skip_all),
         run_drilling_cones=not (args.skip_drilling_cones or skip_all),
+        deep_only=([t.strip() for t in args.deep_only.split(",") if t.strip()]
+                   if args.deep_only else None),
         cones_eps_deg=args.cones_eps_deg,
         cones_min_samples=args.cones_min_samples,
         cones_min_fit_size=args.cones_min_fit_size)

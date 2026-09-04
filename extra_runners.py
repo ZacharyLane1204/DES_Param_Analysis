@@ -524,19 +524,51 @@ def _assemble(plan, by_tag, out_dir):
              # have nothing to do with the model. Only the parameter shifts
              # below are interpretable across a sample cut.
              "delta_logz_NOT_COMPARABLE_ACROSS_CUTS": r["logz"] - b["logz"]}
+        # Is this category a strict SUBSAMPLE of the reference, or the same
+        # SNe fitted under a different model? It decides which error bar on
+        # the parameter shift is correct, so it is recorded explicitly.
+        n_r, n_b = r.get("n_sne"), b.get("n_sne")
+        nested = bool(pd.notna(n_r) and pd.notna(n_b) and float(n_r) < float(n_b))
+        d["n_sne"] = n_r
+        d["ref_n_sne"] = n_b
+        d["nested_in_ref"] = nested
         for pc in param_cols:
             base = pc[:-5]
             sc = f"{base}_std"
             if pd.isna(r.get(pc)) or pd.isna(b.get(pc)):
                 continue
             shift = r[pc] - b[pc]
-            # Quadrature errors OVERSTATE the uncertainty when one sample is a
-            # subset of the other (the two fits share SNe, so their errors are
-            # correlated). Read this as direction and rough magnitude.
-            denom = np.sqrt(float(r.get(sc, np.nan)) ** 2
-                            + float(b.get(sc, np.nan)) ** 2)
+            s_r = float(r.get(sc, np.nan))
+            s_b = float(b.get(sc, np.nan))
+            # A subsample fit and the full-sample fit SHARE SNe, so their
+            # errors are positively correlated and the quadrature sum
+            # sqrt(s_sub^2 + s_full^2) is not the error on their difference.
+            # It is too big, which makes the tension look smaller than it is.
+            # For a nested subsample the correct variance is
+            #     Var(theta_sub - theta_full) = s_sub^2 - s_full^2 ,
+            # which is what nsigma uses when nested_in_ref is True.
+            #
+            # For same-sample categories (lcdm, wcdm -- identical SNe, only
+            # the cosmology model differs) neither expression is right and
+            # there is no closed form, because the correlation depends on how
+            # the extra parameter projects onto this one. Quadrature is used
+            # there and is CONSERVATIVE, so a shift that is significant under
+            # it is genuinely significant; a shift that is not may still be.
+            if nested and np.isfinite(s_r) and np.isfinite(s_b):
+                var_d = s_r ** 2 - s_b ** 2
+                denom = np.sqrt(abs(var_d)) if np.isfinite(var_d) else np.nan
+                d[f"delta_{base}_var_negative"] = bool(var_d <= 0)
+            else:
+                denom = np.sqrt(s_r ** 2 + s_b ** 2)
             d[f"delta_{base}"] = shift
-            d[f"delta_{base}_nsigma"] = shift / denom if denom > 0 else np.nan
+            d[f"delta_{base}_err"] = denom
+            d[f"delta_{base}_nsigma"] = (shift / denom
+                                         if denom and np.isfinite(denom) and denom > 0
+                                         else np.nan)
+            d[f"delta_{base}_nsigma_quad"] = (
+                shift / np.sqrt(s_r ** 2 + s_b ** 2)
+                if np.isfinite(s_r) and np.isfinite(s_b)
+                and (s_r or s_b) else np.nan)
         deltas.append(d)
     deltas = pd.DataFrame(deltas)
     if len(deltas):
