@@ -98,7 +98,8 @@ from experiment_naming import ExperimentRegistry
 from loo_zbins import _subset_data, _refactorise_covariance
 from drilling_cones import find_sky_clusters, plot_cones
 from compare_runs import compare_two_runs
-from best_model import TERMS, COMBOS, merge_terms as _merge_terms, combo_tag
+from best_model import (TERMS, COMBOS, BASELINE_COMBO,
+                        merge_terms as _merge_terms, combo_tag)
 from parallel_runner import Job, run_jobs, add_parallel_args, safe_label
 
 import degeneracy_scan
@@ -408,17 +409,31 @@ def derive_sample_plan(base_cfg, n_bins, eps_deg, min_samples, min_fit_size,
 
 
 def build_jobs(combos, plan, templates, registry_file, do_host_quality,
-               do_loo, do_cones, min_fit_size, deep_combos=None):
+               do_loo, do_cones, min_fit_size, deep_combos=None,
+               cone_combos=None):
     """Every Phase-1 sampling job, plus the bookkeeping needed for Phase 2.
 
     deep_combos
         Optional set of combo tags. When given, only these combos receive the
-        expensive per-model checks (LOO folds and drilling cones); every combo
-        still gets its main fit and its host-quality pair. This is the main
-        cost lever: LOO and cones together are ~n_bins + n_cones + 1 fits per
-        model and dominate the job count, while the main fit is the only one
-        needed to RANK the ladder. Rank first on all of them, then validate
-        the two or three that are actually in contention.
+        LOO z-bin folds; every combo still gets its main fit and its
+        host-quality pair. This is the main cost lever for LOO: it is n_bins
+        fits per model, while the main fit is the only one needed to RANK the
+        ladder. Rank first on all of them, then validate the two or three
+        that are actually in contention.
+
+    cone_combos
+        Combo tags that get drilling cones, chosen INDEPENDENTLY of
+        deep_combos. Defaults to the BASELINE model alone.
+
+        A cone asks whether the cosmology recovered from one patch of sky
+        differs from the all-sky one. That is a question about line-of-sight
+        structure in THE DATA, not about the standardisation model, so the
+        number that means something is the baseline one. Run it on nine
+        models before you have that and you get nine numbers with no
+        reference to read them against, at nine times the cost -- cones are
+        n_cones + 1 fits per model and are the single most expensive check
+        here. Establish it on the baseline, then repeat on the adopted model
+        once the ladder has chosen one.
     """
     registry = ExperimentRegistry(CONFIG, DEFAULT_PARAM_SPECS)
     jobs, meta = [], []
@@ -427,6 +442,7 @@ def build_jobs(combos, plan, templates, registry_file, do_host_quality,
     for term_names in combos:
         ctag = combo_tag(term_names)
         deep = deep_combos is None or ctag in deep_combos
+        cones_here = cone_combos is None or ctag in cone_combos
         cfg = build_combo_cfg(term_names, registry_file, registry, templates)
 
         # ---- 1. main fit ----
@@ -467,7 +483,7 @@ def build_jobs(combos, plan, templates, registry_file, do_host_quality,
                              "fold": b["fold"], "tag": lcfg["run_tag"]})
 
         # ---- 4. drilling cones (broad-uniform Om0, own registry) ----
-        if do_cones and deep and plan["cones"]:
+        if do_cones and cones_here and plan["cones"]:
             dc_specs = copy.deepcopy(cfg["param_specs"])
             for name, upd in broad_uniform_om0_overrides().items():
                 dc_specs[name].update(upd)
@@ -514,7 +530,7 @@ def run_combo_checks(combos=None, only=None, registry_file=REGISTRY_MAIN,
                      loo_n_bins=4, run_host_quality=True, run_loo=True,
                      run_drilling_cones=True, cones_eps_deg=None,
                      cones_min_samples=None, cones_min_fit_size=None,
-                     deep_only=None):
+                     deep_only=None, cone_only=None, cones_all=False):
     """Run the full ablation pass. Returns a dict of summary DataFrames."""
     combos = combos if combos is not None else COMBOS
     if only:
@@ -523,6 +539,16 @@ def run_combo_checks(combos=None, only=None, registry_file=REGISTRY_MAIN,
         if not combos:
             raise SystemExit(f"No combo matched --only {sorted(only)}. "
                              f"Available: {[combo_tag(c) for c in COMBOS]}")
+
+    # Drilling cones default to the BASELINE model alone -- see build_jobs'
+    # cone_combos docstring. --cone-only names a different set; --cones-all
+    # runs every combo (the old behaviour, ~n_cones+1 fits x 9).
+    if cones_all:
+        cone_combos = None
+    elif cone_only:
+        cone_combos = set(cone_only)
+    else:
+        cone_combos = {combo_tag(BASELINE_COMBO)}
 
     deep_combos = None
     if deep_only:
@@ -556,8 +582,19 @@ def run_combo_checks(combos=None, only=None, registry_file=REGISTRY_MAIN,
     for c in plan["cones"]:
         print(f"      {c['label']}{'' if c['fitted'] else '   [SKIPPED: too few]'}")
 
+    if run_drilling_cones and cone_combos is not None:
+        present = {combo_tag(c) for c in combos} & cone_combos
+        missing = cone_combos - {combo_tag(c) for c in combos}
+        if missing:
+            raise SystemExit(f"--cone-only names combos that are not being "
+                             f"run: {sorted(missing)}")
+        print(f"\n  Drilling cones restricted to {len(present)}/{len(combos)} "
+              f"combo(s): {', '.join(sorted(present))}")
+        print("  (--cones-all runs every combo; see BASELINE_COMBO in "
+              "best_model.py for why this is the default.)")
+
     if deep_combos is not None:
-        print(f"\n  Deep checks (LOO + cones) restricted to "
+        print(f"\n  LOO z-bin folds restricted to "
               f"{len(deep_combos)}/{len(combos)} combo(s):")
         for t in sorted(deep_combos):
             print(f"      {t}")
@@ -565,7 +602,8 @@ def run_combo_checks(combos=None, only=None, registry_file=REGISTRY_MAIN,
 
     jobs, meta = build_jobs(combos, plan, templates, registry_file,
                             run_host_quality, run_loo, run_drilling_cones,
-                            minfit, deep_combos=deep_combos)
+                            minfit, deep_combos=deep_combos,
+                            cone_combos=cone_combos)
     meta.to_csv(os.path.join(out_dir, "job_plan.csv"), index=False)
 
     # ---- Phase 1 ----
@@ -898,7 +936,8 @@ def _parse_args():
                         "prefixing the run name.")
     p.add_argument("--deep-only", default=None,
                    help="Comma-separated combo tags that should receive the "
-                        "EXPENSIVE checks (LOO z-bins and drilling cones). "
+                        "LOO z-bin folds (n_bins fits each). Drilling cones "
+                        "are controlled separately by --cone-only. "
                         "Every combo still gets its main fit and its "
                         "host-quality pair, so the ladder is still fully "
                         "ranked. LOO + cones are ~n_bins + n_cones + 1 fits "
@@ -908,6 +947,18 @@ def _parse_args():
                         "Suggested two-pass use: run --fits-only over "
                         "everything, read the ranking, then re-run with "
                         "--deep-only <winner>,<runner-up>,mass_linear.")
+    p.add_argument("--cone-only", default=None,
+                   help="Comma-separated combo tags to run drilling cones "
+                        "for. Default: best_model.BASELINE_COMBO alone. A "
+                        "cone measures line-of-sight structure in the DATA, "
+                        "so the baseline number is the one that means "
+                        "something; expand to the adopted model once the "
+                        "ablation ladder has chosen one.")
+    p.add_argument("--cones-all", action="store_true",
+                   help="Run drilling cones for EVERY combo (n_cones + 1 "
+                        "fits per model -- the most expensive thing in this "
+                        "script). Only worth it if the baseline cone result "
+                        "turns out to be model dependent.")
     p.add_argument("--skip-host-quality", action="store_true")
     p.add_argument("--skip-loo", action="store_true")
     p.add_argument("--skip-drilling-cones", action="store_true")
@@ -945,6 +996,9 @@ if __name__ == "__main__":
         run_drilling_cones=not (args.skip_drilling_cones or skip_all),
         deep_only=([t.strip() for t in args.deep_only.split(",") if t.strip()]
                    if args.deep_only else None),
+        cone_only=([t.strip() for t in args.cone_only.split(",") if t.strip()]
+                   if args.cone_only else None),
+        cones_all=args.cones_all,
         cones_eps_deg=args.cones_eps_deg,
         cones_min_samples=args.cones_min_samples,
         cones_min_fit_size=args.cones_min_fit_size)

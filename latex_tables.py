@@ -1731,6 +1731,33 @@ def generate_extra_checks_table(evidence_csv=None, host_quality_csv=None,
 # TABLE (e) — Leave-one-redshift-bin-out validation (baseline model only)
 # ===========================================================================
 
+def _default_table_combo(df):
+    """Which single model tables (e) and (f) show when --combo is not given.
+
+    Prefers best_model.BASELINE_COMBO, because both the LOO z-bin check and
+    the drilling cones are questions about THE DATA -- does the cosmology hold
+    up across redshift, and across the sky -- rather than about which
+    standardisation model wins. The baseline answer is the one that means
+    something on its own; a per-model answer is only interpretable against it.
+    combo_ablation_checks.py runs cones for the baseline alone by default for
+    the same reason, so this is also the combo most likely to be PRESENT.
+
+    Falls back to BEST_COMBO, then to whatever is in the file, so a CSV
+    produced with --cone-only <something else> still tabulates instead of
+    raising.
+    """
+    have = set(df["combo"].astype(str))
+    try:
+        import best_model
+        for cand in (best_model.BASELINE_COMBO, best_model.BEST_COMBO):
+            tag = best_model.combo_tag(cand)
+            if tag in have:
+                return tag
+    except Exception:
+        pass
+    return df["combo"].iloc[0]
+
+
 def generate_loo_zbins_table(loo_csv=None, combo=None):
     r"""
     TABLE (e) — Leave-one-redshift-bin-out cross-validation for the BASELINE
@@ -1752,11 +1779,7 @@ def generate_loo_zbins_table(loo_csv=None, combo=None):
             f"Run:  python combo_ablation_checks.py --workers N")
 
     if combo is None:
-        try:
-            import best_model
-            combo = best_model.combo_tag(best_model.BEST_COMBO)
-        except Exception:
-            combo = df["combo"].iloc[0]
+        combo = _default_table_combo(df)
     sub = df[df["combo"] == combo].sort_values("fold")
     if not len(sub):
         raise ValueError(
@@ -1841,11 +1864,7 @@ def generate_combo_cones_table(cones_csv=None, cone_plan_csv=None, combo=None):
             f"Run:  python combo_ablation_checks.py --workers N")
 
     if combo is None:
-        try:
-            import best_model
-            combo = best_model.combo_tag(best_model.BEST_COMBO)
-        except Exception:
-            combo = df["combo"].iloc[0]
+        combo = _default_table_combo(df)
     sub = df[df["combo"] == combo].sort_values("cone")
     if not len(sub):
         raise ValueError(
@@ -2093,7 +2112,10 @@ def _parse_args():
                    help="Path for the legacy --drilling-cones table.")
     p.add_argument("--combo", default=None,
                    help="Combo tag for the baseline-only tables (e) and (f). "
-                        "Default: best_model.BEST_COMBO.")
+                        "Default: best_model.BASELINE_COMBO if present, "
+                        "else BEST_COMBO. Cones and LOO are data "
+                        "questions, so the baseline is the "
+                        "meaningful single model to show.")
 
     # ---- output ----
     p.add_argument("--out", default=None,
