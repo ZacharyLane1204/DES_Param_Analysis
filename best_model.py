@@ -254,18 +254,39 @@ COMBOS = [
 # z_uncertainty_check.py's default model are both derived from this list
 # via merge_terms() below -- updating it here updates both automatically.
 #
-# CURRENT VALUE IS PROVISIONAL. It is set to the publication sweep's outright
-# winner (ssfr/ssfr_tanh_hcol_none_mass_linear, lnZ = -439.837, dlnZ = +12.94
-# over the mass="step" baseline, best of all 486 runs and still the champion
-# after the x1_tau fix, which touched only the stretch/* family). But that
-# sweep never fitted ssfr_tanh together with sncolour_softbroken_sntau or
-# with interaction_gammaalpha, which is exactly what COMBOS above now tests.
-# The factorial can therefore legitimately unseat this entry -- that is the
-# point of running it.
+# PROMOTED from ["mass_linear", "ssfr_tanh"] after combo_ablation_checks.py's
+# full factorial (combo_ablation/combo_ablation_summary.csv), per the
+# checklist below:
+#   1. Largest lnZ in the 9-entry factorial: mass_linear_ssfr_tanh_
+#      sncolour_softbroken_sntau_interaction_gammaalpha, lnZ = -436.766
+#      (dlnZ = +19.85 over the mass="step" baseline).
+#   2. dlnZ over the previous BEST_COMBO (mass_linear_ssfr_tanh, -439.943)
+#      is +3.18 -- well above the ~1 "substantial" bar for logZ_err ~ 0.06.
+#   3. Interaction check: individual deltas over mass_linear alone are
+#      ssfr_tanh +7.46, sncolour_softbroken_sntau +2.46,
+#      interaction_gammaalpha +0.49 (sum 10.41); the full combo's delta is
+#      10.64. Cross-term = +0.23 -- small and positive, so the three
+#      additions are close to additive, not double-counting one feature.
+#   4. Survives combo_ablation's robustness checks for this combo: host-
+#      quality tension 0.045 sigma, 0/4 LOO z-bins flagged (max residual
+#      0.024 mag), 0/4 sky cones flagged (max 1.27 sigma) -- both under the
+#      informative-prior fit and under drilling_cones_checks.py's broad-
+#      uniform-Om0 refit (drilling_all: -436.875, same ranking, max per-cone
+#      tension 1.27 sigma). One thing to keep an eye on, not itself
+#      disqualifying: degeneracy_scan flags beta<->sn_tau at -0.86 for this
+#      combo (any combo including sncolour_softbroken_sntau shows the same
+#      -0.86/-0.87, so it is a property of that colour model, not something
+#      the promotion introduced).
 #
-# HOW TO PROMOTE A NEW WINNER, once combo_ablation_checks.py has run:
-#   1. Read combo_ablation/combo_ablation_summary.csv. All nine entries share
-#      one background model, so their lnZ ARE directly comparable; just take
+# NOT tested in the factorial above: host_colour. Its own single-term
+# category run (hcol_sigmoid_C0_mass_linear, lnZ = -446.154, dlnZ = +6.62
+# over baseline) is a comparable-sized effect to sncolour_softbroken_sntau's
+# +2.46-2.46, so it may be worth adding to COMBOS and re-running the
+# factorial before this is treated as final.
+#
+# HOW TO PROMOTE THE NEXT WINNER, once combo_ablation_checks.py has run again:
+#   1. Read combo_ablation/combo_ablation_summary.csv. All entries share one
+#      background model, so their lnZ ARE directly comparable; just take
 #      the largest.
 #   2. Require dlnZ > ~1 over the current BEST_COMBO before adding parameters.
 #      logZ_err is ~0.1 per run, so ~0.14 on a difference -- a 0.3 lnZ "win"
@@ -287,7 +308,8 @@ COMBOS = [
 # drilling-cone check, a redshift-uncertainty check or a wCDM/subsample
 # refit. That was the case before it was added. The assertion at the bottom
 # of this module enforces it.
-BEST_COMBO = ["mass_linear", "ssfr_tanh"]
+BEST_COMBO = ["mass_linear", "ssfr_tanh", "sncolour_softbroken_sntau",
+             "interaction_gammaalpha"]
 
 # BASELINE_COMBO  —  the published reference model
 # ------------------------------------------------
