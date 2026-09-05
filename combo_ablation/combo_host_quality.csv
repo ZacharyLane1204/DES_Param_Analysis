@@ -1,0 +1,10 @@
+combo,gaussian_nsigma,kde_nsigma,lnB
+mass_step,0.201,0.22,95.666
+mass_linear,0.25,0.246,96.727
+mass_linear_ssfr_tanh,0.432,0.433,93.602
+mass_linear_sncolour_softbroken_sntau,0.131,0.098,98.571
+mass_linear_interaction_gammaalpha,0.103,0.086,96.243
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,0.252,,95.707
+mass_linear_ssfr_tanh_interaction_gammaalpha,0.121,,94.459
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,0.041,,97.978
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,0.045,,96.643

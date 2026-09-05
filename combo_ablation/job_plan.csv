@@ -1,0 +1,109 @@
+combo,terms,kind,tag,fold,cone,cone_label,n_sne,ra_centre,dec_centre
+mass_step,mass_step,fit,combo/fit_mass_step,,,,,,
+mass_step,,host_qual_all,combo/host_qual_mass_step_all,,,,,,
+mass_step,,host_qual_strict,combo/host_qual_mass_step_strict,,,,,,
+mass_step,,loo_zbin,combo/loo_zbin_mass_step_b00,0.0,,,,,
+mass_step,,loo_zbin,combo/loo_zbin_mass_step_b01,1.0,,,,,
+mass_step,,loo_zbin,combo/loo_zbin_mass_step_b02,2.0,,,,,
+mass_step,,loo_zbin,combo/loo_zbin_mass_step_b03,3.0,,,,,
+mass_step,,drill_ref,combo/drilling_all_mass_step,,,,,,
+mass_step,,drill_cone,combo/drilling_00_mass_step,,0.0,"c00 (RA 53.5, Dec -28.2, N=580)",580.0,53.490988,-28.17395
+mass_step,,drill_cone,combo/drilling_01_mass_step,,1.0,"c01 (RA 35.8, Dec -5.0, N=520)",520.0,35.8382625,-4.9663260000000005
+mass_step,,drill_cone,combo/drilling_02_mass_step,,2.0,"c02 (RA 8.8, Dec -43.6, N=283)",283.0,8.825641,-43.61113
+mass_step,,drill_cone,combo/drilling_03_mass_step,,3.0,"c03 (RA 41.7, Dec -0.7, N=240)",240.0,41.729561000000004,-0.674445
+mass_linear,mass_linear,fit,combo/fit_mass_linear,,,,,,
+mass_linear,,host_qual_all,combo/host_qual_mass_linear_all,,,,,,
+mass_linear,,host_qual_strict,combo/host_qual_mass_linear_strict,,,,,,
+mass_linear,,loo_zbin,combo/loo_zbin_mass_linear_b00,0.0,,,,,
+mass_linear,,loo_zbin,combo/loo_zbin_mass_linear_b01,1.0,,,,,
+mass_linear,,loo_zbin,combo/loo_zbin_mass_linear_b02,2.0,,,,,
+mass_linear,,loo_zbin,combo/loo_zbin_mass_linear_b03,3.0,,,,,
+mass_linear,,drill_ref,combo/drilling_all_mass_linear,,,,,,
+mass_linear,,drill_cone,combo/drilling_00_mass_linear,,0.0,"c00 (RA 53.5, Dec -28.2, N=580)",580.0,53.490988,-28.17395
+mass_linear,,drill_cone,combo/drilling_01_mass_linear,,1.0,"c01 (RA 35.8, Dec -5.0, N=520)",520.0,35.8382625,-4.9663260000000005
+mass_linear,,drill_cone,combo/drilling_02_mass_linear,,2.0,"c02 (RA 8.8, Dec -43.6, N=283)",283.0,8.825641,-43.61113
+mass_linear,,drill_cone,combo/drilling_03_mass_linear,,3.0,"c03 (RA 41.7, Dec -0.7, N=240)",240.0,41.729561000000004,-0.674445
+mass_linear_ssfr_tanh,mass_linear|ssfr_tanh,fit,combo/fit_mass_linear_ssfr_tanh,,,,,,
+mass_linear_ssfr_tanh,,host_qual_all,combo/host_qual_mass_linear_ssfr_tanh_all,,,,,,
+mass_linear_ssfr_tanh,,host_qual_strict,combo/host_qual_mass_linear_ssfr_tanh_strict,,,,,,
+mass_linear_ssfr_tanh,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_b00,0.0,,,,,
+mass_linear_ssfr_tanh,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_b01,1.0,,,,,
+mass_linear_ssfr_tanh,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_b02,2.0,,,,,
+mass_linear_ssfr_tanh,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_b03,3.0,,,,,
+mass_linear_ssfr_tanh,,drill_ref,combo/drilling_all_mass_linear_ssfr_tanh,,,,,,
+mass_linear_ssfr_tanh,,drill_cone,combo/drilling_00_mass_linear_ssfr_tanh,,0.0,"c00 (RA 53.5, Dec -28.2, N=580)",580.0,53.490988,-28.17395
+mass_linear_ssfr_tanh,,drill_cone,combo/drilling_01_mass_linear_ssfr_tanh,,1.0,"c01 (RA 35.8, Dec -5.0, N=520)",520.0,35.8382625,-4.9663260000000005
+mass_linear_ssfr_tanh,,drill_cone,combo/drilling_02_mass_linear_ssfr_tanh,,2.0,"c02 (RA 8.8, Dec -43.6, N=283)",283.0,8.825641,-43.61113
+mass_linear_ssfr_tanh,,drill_cone,combo/drilling_03_mass_linear_ssfr_tanh,,3.0,"c03 (RA 41.7, Dec -0.7, N=240)",240.0,41.729561000000004,-0.674445
+mass_linear_sncolour_softbroken_sntau,mass_linear|sncolour_softbroken_sntau,fit,combo/fit_mass_linear_sncolour_softbroken_sntau,,,,,,
+mass_linear_sncolour_softbroken_sntau,,host_qual_all,combo/host_qual_mass_linear_sncolour_softbroken_sntau_all,,,,,,
+mass_linear_sncolour_softbroken_sntau,,host_qual_strict,combo/host_qual_mass_linear_sncolour_softbroken_sntau_strict,,,,,,
+mass_linear_sncolour_softbroken_sntau,,loo_zbin,combo/loo_zbin_mass_linear_sncolour_softbroken_sntau_b00,0.0,,,,,
+mass_linear_sncolour_softbroken_sntau,,loo_zbin,combo/loo_zbin_mass_linear_sncolour_softbroken_sntau_b01,1.0,,,,,
+mass_linear_sncolour_softbroken_sntau,,loo_zbin,combo/loo_zbin_mass_linear_sncolour_softbroken_sntau_b02,2.0,,,,,
+mass_linear_sncolour_softbroken_sntau,,loo_zbin,combo/loo_zbin_mass_linear_sncolour_softbroken_sntau_b03,3.0,,,,,
+mass_linear_sncolour_softbroken_sntau,,drill_ref,combo/drilling_all_mass_linear_sncolour_softbroken_sntau,,,,,,
+mass_linear_sncolour_softbroken_sntau,,drill_cone,combo/drilling_00_mass_linear_sncolour_softbroken_sntau,,0.0,"c00 (RA 53.5, Dec -28.2, N=580)",580.0,53.490988,-28.17395
+mass_linear_sncolour_softbroken_sntau,,drill_cone,combo/drilling_01_mass_linear_sncolour_softbroken_sntau,,1.0,"c01 (RA 35.8, Dec -5.0, N=520)",520.0,35.8382625,-4.9663260000000005
+mass_linear_sncolour_softbroken_sntau,,drill_cone,combo/drilling_02_mass_linear_sncolour_softbroken_sntau,,2.0,"c02 (RA 8.8, Dec -43.6, N=283)",283.0,8.825641,-43.61113
+mass_linear_sncolour_softbroken_sntau,,drill_cone,combo/drilling_03_mass_linear_sncolour_softbroken_sntau,,3.0,"c03 (RA 41.7, Dec -0.7, N=240)",240.0,41.729561000000004,-0.674445
+mass_linear_interaction_gammaalpha,mass_linear|interaction_gammaalpha,fit,combo/fit_mass_linear_interaction_gammaalpha,,,,,,
+mass_linear_interaction_gammaalpha,,host_qual_all,combo/host_qual_mass_linear_interaction_gammaalpha_all,,,,,,
+mass_linear_interaction_gammaalpha,,host_qual_strict,combo/host_qual_mass_linear_interaction_gammaalpha_strict,,,,,,
+mass_linear_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_interaction_gammaalpha_b00,0.0,,,,,
+mass_linear_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_interaction_gammaalpha_b01,1.0,,,,,
+mass_linear_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_interaction_gammaalpha_b02,2.0,,,,,
+mass_linear_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_interaction_gammaalpha_b03,3.0,,,,,
+mass_linear_interaction_gammaalpha,,drill_ref,combo/drilling_all_mass_linear_interaction_gammaalpha,,,,,,
+mass_linear_interaction_gammaalpha,,drill_cone,combo/drilling_00_mass_linear_interaction_gammaalpha,,0.0,"c00 (RA 53.5, Dec -28.2, N=580)",580.0,53.490988,-28.17395
+mass_linear_interaction_gammaalpha,,drill_cone,combo/drilling_01_mass_linear_interaction_gammaalpha,,1.0,"c01 (RA 35.8, Dec -5.0, N=520)",520.0,35.8382625,-4.9663260000000005
+mass_linear_interaction_gammaalpha,,drill_cone,combo/drilling_02_mass_linear_interaction_gammaalpha,,2.0,"c02 (RA 8.8, Dec -43.6, N=283)",283.0,8.825641,-43.61113
+mass_linear_interaction_gammaalpha,,drill_cone,combo/drilling_03_mass_linear_interaction_gammaalpha,,3.0,"c03 (RA 41.7, Dec -0.7, N=240)",240.0,41.729561000000004,-0.674445
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,mass_linear|ssfr_tanh|sncolour_softbroken_sntau,fit,combo/fit_mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,host_qual_all,combo/host_qual_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_all,,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,host_qual_strict,combo/host_qual_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_strict,,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_b00,0.0,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_b01,1.0,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_b02,2.0,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_b03,3.0,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,drill_ref,combo/drilling_all_mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,drill_cone,combo/drilling_00_mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,0.0,"c00 (RA 53.5, Dec -28.2, N=580)",580.0,53.490988,-28.17395
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,drill_cone,combo/drilling_01_mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,1.0,"c01 (RA 35.8, Dec -5.0, N=520)",520.0,35.8382625,-4.9663260000000005
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,drill_cone,combo/drilling_02_mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,2.0,"c02 (RA 8.8, Dec -43.6, N=283)",283.0,8.825641,-43.61113
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,drill_cone,combo/drilling_03_mass_linear_ssfr_tanh_sncolour_softbroken_sntau,,3.0,"c03 (RA 41.7, Dec -0.7, N=240)",240.0,41.729561000000004,-0.674445
+mass_linear_ssfr_tanh_interaction_gammaalpha,mass_linear|ssfr_tanh|interaction_gammaalpha,fit,combo/fit_mass_linear_ssfr_tanh_interaction_gammaalpha,,,,,,
+mass_linear_ssfr_tanh_interaction_gammaalpha,,host_qual_all,combo/host_qual_mass_linear_ssfr_tanh_interaction_gammaalpha_all,,,,,,
+mass_linear_ssfr_tanh_interaction_gammaalpha,,host_qual_strict,combo/host_qual_mass_linear_ssfr_tanh_interaction_gammaalpha_strict,,,,,,
+mass_linear_ssfr_tanh_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_interaction_gammaalpha_b00,0.0,,,,,
+mass_linear_ssfr_tanh_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_interaction_gammaalpha_b01,1.0,,,,,
+mass_linear_ssfr_tanh_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_interaction_gammaalpha_b02,2.0,,,,,
+mass_linear_ssfr_tanh_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_interaction_gammaalpha_b03,3.0,,,,,
+mass_linear_ssfr_tanh_interaction_gammaalpha,,drill_ref,combo/drilling_all_mass_linear_ssfr_tanh_interaction_gammaalpha,,,,,,
+mass_linear_ssfr_tanh_interaction_gammaalpha,,drill_cone,combo/drilling_00_mass_linear_ssfr_tanh_interaction_gammaalpha,,0.0,"c00 (RA 53.5, Dec -28.2, N=580)",580.0,53.490988,-28.17395
+mass_linear_ssfr_tanh_interaction_gammaalpha,,drill_cone,combo/drilling_01_mass_linear_ssfr_tanh_interaction_gammaalpha,,1.0,"c01 (RA 35.8, Dec -5.0, N=520)",520.0,35.8382625,-4.9663260000000005
+mass_linear_ssfr_tanh_interaction_gammaalpha,,drill_cone,combo/drilling_02_mass_linear_ssfr_tanh_interaction_gammaalpha,,2.0,"c02 (RA 8.8, Dec -43.6, N=283)",283.0,8.825641,-43.61113
+mass_linear_ssfr_tanh_interaction_gammaalpha,,drill_cone,combo/drilling_03_mass_linear_ssfr_tanh_interaction_gammaalpha,,3.0,"c03 (RA 41.7, Dec -0.7, N=240)",240.0,41.729561000000004,-0.674445
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,mass_linear|sncolour_softbroken_sntau|interaction_gammaalpha,fit,combo/fit_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,,,,,
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,host_qual_all,combo/host_qual_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha_all,,,,,,
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,host_qual_strict,combo/host_qual_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha_strict,,,,,,
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha_b00,0.0,,,,,
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha_b01,1.0,,,,,
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha_b02,2.0,,,,,
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha_b03,3.0,,,,,
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,drill_ref,combo/drilling_all_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,,,,,
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,drill_cone,combo/drilling_00_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,0.0,"c00 (RA 53.5, Dec -28.2, N=580)",580.0,53.490988,-28.17395
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,drill_cone,combo/drilling_01_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,1.0,"c01 (RA 35.8, Dec -5.0, N=520)",520.0,35.8382625,-4.9663260000000005
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,drill_cone,combo/drilling_02_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,2.0,"c02 (RA 8.8, Dec -43.6, N=283)",283.0,8.825641,-43.61113
+mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,drill_cone,combo/drilling_03_mass_linear_sncolour_softbroken_sntau_interaction_gammaalpha,,3.0,"c03 (RA 41.7, Dec -0.7, N=240)",240.0,41.729561000000004,-0.674445
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,mass_linear|ssfr_tanh|sncolour_softbroken_sntau|interaction_gammaalpha,fit,combo/fit_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,host_qual_all,combo/host_qual_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha_all,,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,host_qual_strict,combo/host_qual_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha_strict,,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha_b00,0.0,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha_b01,1.0,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha_b02,2.0,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,loo_zbin,combo/loo_zbin_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha_b03,3.0,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,drill_ref,combo/drilling_all_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,,,,,
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,drill_cone,combo/drilling_00_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,0.0,"c00 (RA 53.5, Dec -28.2, N=580)",580.0,53.490988,-28.17395
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,drill_cone,combo/drilling_01_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,1.0,"c01 (RA 35.8, Dec -5.0, N=520)",520.0,35.8382625,-4.9663260000000005
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,drill_cone,combo/drilling_02_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,2.0,"c02 (RA 8.8, Dec -43.6, N=283)",283.0,8.825641,-43.61113
+mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,drill_cone,combo/drilling_03_mass_linear_ssfr_tanh_sncolour_softbroken_sntau_interaction_gammaalpha,,3.0,"c03 (RA 41.7, Dec -0.7, N=240)",240.0,41.729561000000004,-0.674445

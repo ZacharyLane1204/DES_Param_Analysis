@@ -1,0 +1,2 @@
+run_1,run_2,n_shared_params,shared_params,gaussian_nsigma,gaussian_pvalue,gaussian_Q,gaussian_dof,kde_nsigma,kde_p_enclosed,lnB,lnB_err,lnB_label,lnB_favours
+Plots/combo/drilling_all_mass_linear_ssfr_tanh_results.pkl,Plots/combo/drilling_02_mass_linear_ssfr_tanh_results.pkl,5,alpha|beta|gamma|Om0|zeta,0.606,0.5442991542593535,4.036,5,0.625,0.468,-363.14,0.079,strong,run_2

@@ -1,0 +1,2 @@
+run_1,run_2,n_shared_params,shared_params,gaussian_nsigma,gaussian_pvalue,gaussian_Q,gaussian_dof,kde_nsigma,kde_p_enclosed,lnB,lnB_err,lnB_label,lnB_favours
+Plots/combo/host_qual_mass_linear_interaction_gammaalpha_all_results.pkl,Plots/combo/host_qual_mass_linear_interaction_gammaalpha_strict_results.pkl,5,alpha|beta|gamma|Om0|gamma_alpha,0.103,0.9182512257696294,1.455,5,0.086,0.06825,96.243,0.084,strong,run_1

@@ -1,0 +1,2 @@
+run_1,run_2,n_shared_params,shared_params,gaussian_nsigma,gaussian_pvalue,gaussian_Q,gaussian_dof,kde_nsigma,kde_p_enclosed,lnB,lnB_err,lnB_label,lnB_favours
+Plots/combo/host_qual_mass_linear_ssfr_tanh_all_results.pkl,Plots/combo/host_qual_mass_linear_ssfr_tanh_strict_results.pkl,5,alpha|beta|gamma|Om0|zeta,0.432,0.6656372665941199,3.223,5,0.433,0.335,93.602,0.086,strong,run_1

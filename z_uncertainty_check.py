@@ -566,7 +566,7 @@ if __name__ == "__main__":
 
     run_z_uncertainty_check(
         combos=_combos,
-        only=[s.strip() for s in args.only.split(",")] if args.only else None,
+       only=[s.strip() for s in args.only.split(",")] if args.only else None,
         n_realizations=args.n_realizations,
         seed0=args.seed0,
         zerr_col=args.zerr_col,

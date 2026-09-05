@@ -1,0 +1,2 @@
+run_1,run_2,n_shared_params,shared_params,gaussian_nsigma,gaussian_pvalue,gaussian_Q,gaussian_dof,kde_nsigma,kde_p_enclosed,lnB,lnB_err,lnB_label,lnB_favours
+Plots/combo/drilling_all_mass_linear_interaction_gammaalpha_results.pkl,Plots/combo/drilling_03_mass_linear_interaction_gammaalpha_results.pkl,5,alpha|beta|gamma|Om0|gamma_alpha,1.868,0.061725115560160936,10.522,5,1.34,0.81975,-368.411,0.074,strong,run_2

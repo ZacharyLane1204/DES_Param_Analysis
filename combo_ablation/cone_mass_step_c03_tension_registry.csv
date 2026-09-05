@@ -1,0 +1,2 @@
+run_1,run_2,n_shared_params,shared_params,gaussian_nsigma,gaussian_pvalue,gaussian_Q,gaussian_dof,kde_nsigma,kde_p_enclosed,lnB,lnB_err,lnB_label,lnB_favours
+Plots/combo/drilling_all_mass_step_results.pkl,Plots/combo/drilling_03_mass_step_results.pkl,4,alpha|beta|gamma|Om0,0.658,0.5105911593523274,3.29,4,0.873,0.6175,-378.481,0.073,strong,run_2
