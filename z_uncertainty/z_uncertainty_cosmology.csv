@@ -1,0 +1,2 @@
+combo,param,n_realizations,baseline_mean,baseline_posterior_std,mc_mean,mc_std,mc_std_as_frac_of_posterior_std,bias_nsigma,flagged
+mass_step,Om0,80,0.3422574326518519,0.015317796514256557,0.343248570359656,0.0030791310800810366,0.20101658076050508,0.06470497939319494,True
