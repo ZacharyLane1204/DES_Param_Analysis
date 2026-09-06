@@ -426,12 +426,17 @@ def _nlive_display(cfg, cli_mode=None):
 # 6.  DRIVER
 # ===========================================================================
 
-def run_extra_checks(categories=None, combos=None, only=None,
+def run_extra_checks(categories=None, combos=None, only=None, index=None,
                      include_hosterr=True, nlive_mode=None,
                      registry_file=REGISTRY, n_workers=None, sequential=False,
                      log_dir="logs/checks", out_dir=OUT_DIR, dry_run=False,
                      capture_output=True):
     """Run the selected check categories over the selected models, in parallel.
+
+    index : optional '--index'-style string ('5' or '0-9') selecting a
+        subset of the built plan by position -- see _resolve_indices().
+        Applied AFTER categories/only, so the indices match what
+        `--list` (with the same --categories/--only) shows.
 
     Returns a dict of DataFrames: evidence, deltas.
     """
@@ -446,6 +451,17 @@ def run_extra_checks(categories=None, combos=None, only=None,
 
     plan = build_experiments(categories, combos, registry_file,
                              include_hosterr, nlive_mode)
+
+    if index is not None:
+        n_planned = len(plan)
+        indices = set(_resolve_indices(index, n_planned))
+        plan = [p for i, p in enumerate(plan) if i in indices]
+        if not plan:
+            raise SystemExit(
+                f"--index {index} matched none of the {n_planned} planned "
+                f"run(s) for this --categories/--only selection; use "
+                f"--list to see valid indices.")
+
     os.makedirs(out_dir, exist_ok=True)
     pd.DataFrame([{k: v for k, v in p.items() if k != "cfg"} for p in plan]) \
         .to_csv(os.path.join(out_dir, "extra_runners_plan.csv"), index=False)
@@ -673,6 +689,17 @@ def _print_summary(evidence, ranking, hosterr, out_dir):
 # 7.  CLI
 # ===========================================================================
 
+def _resolve_indices(index_str, n):
+    """Parse '5' or '0-9' into a list of integer indices. Same convention as
+    experiment_runner.py's helper of the same name -- duplicated rather than
+    imported so that loading this module doesn't also trigger building
+    experiment_runner.EXPERIMENTS (a 268-run sweep) as a side effect."""
+    if "-" in index_str:
+        lo, hi = index_str.split("-")
+        return list(range(int(lo), int(hi) + 1))
+    return [int(index_str)]
+
+
 def _parse_args():
     p = argparse.ArgumentParser(
         description="Post-hoc systematic checks on every competing model, in "
@@ -684,6 +711,11 @@ def _parse_args():
     p.add_argument("--only", default=None,
                    help="Comma-separated combo tags "
                         "(default: all of best_model.COMBOS).")
+    p.add_argument("--index", default=None,
+                   help="Run a single index or range e.g. 2 or 0-9, over the "
+                        "plan built from --categories/--only (see --list for "
+                        "the index of each planned run). Applied after "
+                        "--categories/--only, not instead of them.")
     p.add_argument("--no-hosterr", action="store_true",
                    help="Skip the host measurement-error matched pairs.")
     p.add_argument("--list", action="store_true",
@@ -739,6 +771,7 @@ if __name__ == "__main__":
     run_extra_checks(
         categories=_cats,
         only=_only,
+        index=args.index,
         include_hosterr=not args.no_hosterr,
         nlive_mode=_mode,
         registry_file=args.registry_file,
