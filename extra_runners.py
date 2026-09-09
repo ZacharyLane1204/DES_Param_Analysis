@@ -308,10 +308,47 @@ HOSTERR_VARIANTS = [
     ("gh80_varpen",        {"n_gh_nodes": 80, "host_var_penalty": True}),
 ]
 
+# Which model["<key>"] must be != "none" for a variant to change anything.
+# host_colour_err_from_logmass / *_slope only touch S_colour's contribution
+# to G, and ssfr_err_max only touches S_ssfr's -- with that term inactive
+# ("none"), the config differs from the reference but the likelihood is
+# identical, so the fit is a wasted duplicate of HOSTERR_REFERENCE_TAG under
+# a different tag. varpen/noerrors/gh80/gh80_varpen touch whichever host
+# terms ARE active (mass is active in every COMBOS entry), so they are never
+# skipped by this. Keys not listed here are always run. See
+# build_experiments(), which drops a variant only when every key it lists is
+# inactive in HOSTERR_BEST's effective model.
+HOSTERR_VARIANT_REQUIRES = {
+    "nocolourerr":        ("host_colour",),
+    "nocolourerr_varpen": ("host_colour",),
+    "slope050":           ("host_colour",),
+    "slope115":           ("host_colour",),
+    "ssfrmask20":         ("ssfr",),
+    "ssfrmask30":         ("ssfr",),
+    "nossfrmask":         ("ssfr",),
+}
+
 # The run every hosterr/* variant is measured against. Same model, same SNe,
 # reference error treatment -- it is category "a"'s entry for the best model.
 HOSTERR_REFERENCE_TAG = _tag("check", category=REFERENCE_CATEGORY,
                              combo=HOSTERR_BEST["label"])
+
+
+def _split_hosterr_variants(eff_model):
+    """(kept, skipped) for HOSTERR_VARIANTS given an effective model dict --
+    kept is [(variant, overrides), ...], skipped is [(variant, (needed_key,
+    ...)), ...]. Shared by build_experiments() and --list-categories so both
+    report the same count for the model actually in play."""
+    kept, skipped = [], []
+    for variant, overrides in HOSTERR_VARIANTS:
+        needs = HOSTERR_VARIANT_REQUIRES.get(variant, ())
+        inactive_needs = tuple(k for k in needs
+                               if eff_model.get(k, "none") == "none")
+        if needs and len(inactive_needs) == len(needs):
+            skipped.append((variant, inactive_needs))
+        else:
+            kept.append((variant, overrides))
+    return kept, skipped
 
 
 # ===========================================================================
@@ -394,8 +431,10 @@ def build_experiments(categories=None, combos=None, registry_file=REGISTRY,
 
     if include_hosterr and REFERENCE_CATEGORY in categories:
         label = HOSTERR_BEST["label"]
-        for variant, overrides in HOSTERR_VARIANTS:
-            cfg_over = {"model": {**CONFIG["model"], **HOSTERR_BEST["model"]},
+        eff_model = {**CONFIG["model"], **HOSTERR_BEST["model"]}
+        kept_variants, skipped_variants = _split_hosterr_variants(eff_model)
+        for variant, overrides in kept_variants:
+            cfg_over = {"model": dict(eff_model),
                         "registry_file": registry_file, **overrides}
             tag = _tag("hosterr", combo=label, variant=variant)
             cfg = registry.build(
@@ -406,6 +445,14 @@ def build_experiments(categories=None, combos=None, registry_file=REGISTRY,
             plan.append({"category": "hosterr", "letter": "a",
                          "combo": label, "variant": variant, "tag": tag,
                          "cfg": cfg})
+        if skipped_variants:
+            print(f"\n[hosterr] {len(skipped_variants)}/{len(HOSTERR_VARIANTS)} "
+                 f"variant(s) skipped for '{label}' -- the model term(s) they "
+                 f"test are inactive (model[key]='none'), so they would only "
+                 f"duplicate the reference fit:")
+            for variant, inactive_needs in skipped_variants:
+                print(f"  {variant:<20s} needs {'/'.join(inactive_needs)} "
+                     f"active")
 
     # Keep new entries honest about the "<category>/" convention without
     # renaming the historical tags this registry never sees.
@@ -428,15 +475,22 @@ def _nlive_display(cfg, cli_mode=None):
 
 def run_extra_checks(categories=None, combos=None, only=None, index=None,
                      include_hosterr=True, nlive_mode=None,
-                     registry_file=REGISTRY, n_workers=None, sequential=False,
-                     log_dir="logs/checks", out_dir=OUT_DIR, dry_run=False,
-                     capture_output=True):
+                     registry_file=REGISTRY, rerun=False, n_workers=None,
+                     sequential=False, log_dir="logs/checks", out_dir=OUT_DIR,
+                     dry_run=False, capture_output=True):
     """Run the selected check categories over the selected models, in parallel.
 
     index : optional '--index'-style string ('5' or '0-9') selecting a
         subset of the built plan by position -- see _resolve_indices().
         Applied AFTER categories/only, so the indices match what
         `--list` (with the same --categories/--only) shows.
+    rerun : if False (default), any planned tag already present in
+        registry_file is NOT resubmitted to the sampler -- same convention
+        as experiment_runner.py's --rerun. The assembled CSVs still cover
+        every tag in the plan: a skipped tag's row is read back from its
+        existing registry row rather than a fresh fit, so resuming a
+        partially-completed run produces the same evidence/deltas/hosterr
+        output a from-scratch run would, just without redoing the sampling.
 
     Returns a dict of DataFrames: evidence, deltas.
     """
@@ -466,8 +520,59 @@ def run_extra_checks(categories=None, combos=None, only=None, index=None,
     pd.DataFrame([{k: v for k, v in p.items() if k != "cfg"} for p in plan]) \
         .to_csv(os.path.join(out_dir, "extra_runners_plan.csv"), index=False)
 
+    # ---- Skip tags already in the registry (unless rerun=True) ----
+    # Read run_name from every row of registry_file (same file every plan
+    # entry writes to -- see build_experiments) and drop those tags from
+    # what actually gets submitted to the sampler. The row for a skipped
+    # tag is reconstructed straight from its registry row rather than
+    # dropped from the output entirely, so extra_runners_evidence.csv /
+    # extra_runners_deltas.csv / extra_runners_hosterr.csv stay complete
+    # (every planned tag present) whether this invocation ran everything
+    # from scratch or is resuming a partially-completed one. _registry_row
+    # (run.py) writes logZ/logZ_err/N_sne/{param}_mean/{param}_std under
+    # those exact names, which is all _assemble() below actually reads, so
+    # this reconstruction only loses the 3-5 decimal rounding already
+    # baked into the registry -- not a new source of imprecision.
+    by_tag_registry = {}
+    if not rerun and os.path.isfile(registry_file):
+        try:
+            _reg_df = pd.read_csv(registry_file)
+            _reg_df = _reg_df.drop_duplicates(subset="run_name", keep="last")
+            _reg_df = _reg_df.set_index("run_name")
+        except Exception:
+            _reg_df = None
+        if _reg_df is not None:
+            for p in plan:
+                if p["tag"] not in _reg_df.index:
+                    continue
+                row = _reg_df.loc[p["tag"]]
+                v = {"run_tag": p["tag"], "run_name": p["tag"],
+                    "logz": float(row["logZ"]), "logz_err": float(row["logZ_err"]),
+                    "n_sne": row.get("N_sne"), "n_params": row.get("ndim"),
+                    "active_params": row.get("active_params")}
+                for col in row.index:
+                    if col.endswith("_mean") or col.endswith("_std"):
+                        val = row[col]
+                        if pd.notna(val):
+                            v[col] = float(val)
+                by_tag_registry[p["tag"]] = v
+
+    to_run = [p for p in plan if p["tag"] not in by_tag_registry]
+    if by_tag_registry:
+        print(f"\n[skip] {len(by_tag_registry)}/{len(plan)} planned run(s) "
+             f"already in '{registry_file}' (use rerun=True / --rerun to "
+             f"force):")
+        for p in plan:
+            if p["tag"] in by_tag_registry:
+                print(f"  {p['tag']}")
+
+    if not to_run:
+        print("\nNothing new to run -- every planned tag is already in "
+             f"'{registry_file}'. Use rerun=True / --rerun to force.")
+        return _assemble(plan, by_tag_registry, out_dir)
+
     jobs = []
-    for p in plan:
+    for p in to_run:
         n_active = sum(1 for s in p["cfg"]["param_specs"].values() if s["active"])
         # host_var_penalty refactorises the covariance on every likelihood call,
         # so those runs are far slower than their parameter count suggests.
@@ -491,6 +596,7 @@ def run_extra_checks(categories=None, combos=None, only=None, index=None,
         summary_name="extra_runners_summary.log",
         extra_lines=[f"Models        : {len(combos) if combos is not None else len(COMBOS)}",
                      f"nlive mode    : {nlive_mode or 'per-experiment'}",
+                     f"Skipped       : {len(by_tag_registry)} already in registry",
                      "Categories    :"] + cat_lines)
     if dry_run:
         return {"plan": pd.DataFrame(
@@ -498,6 +604,7 @@ def run_extra_checks(categories=None, combos=None, only=None, index=None,
 
     by_tag = {r.label: r.value for r in results
               if r.status == "ok" and r.value is not None}
+    by_tag = {**by_tag_registry, **by_tag}
     return _assemble(plan, by_tag, out_dir)
 
 
@@ -718,6 +825,9 @@ def _parse_args():
                         "--categories/--only, not instead of them.")
     p.add_argument("--no-hosterr", action="store_true",
                    help="Skip the host measurement-error matched pairs.")
+    p.add_argument("--rerun", action="store_true",
+                   help="Resubmit tags already present in --registry-file "
+                        "instead of skipping them (default: skip).")
     p.add_argument("--list", action="store_true",
                    help="List every planned run with its parameter count and "
                         "nlive, then exit.")
@@ -745,8 +855,12 @@ if __name__ == "__main__":
             c = CATEGORIES[key]
             print(f"{c['letter']}) {key:<10s} {c['title']}")
             print(f"   {'':<10s} {c['note']}")
+        _eff_model = {**CONFIG["model"], **HOSTERR_BEST["model"]}
+        _kept, _skipped = _split_hosterr_variants(_eff_model)
         print(f"a) {'hosterr':<10s} Host measurement-error matched pairs "
-              f"({HOSTERR_BEST['label']}, {len(HOSTERR_VARIANTS)} variants)")
+              f"({HOSTERR_BEST['label']}, {len(_kept)}/{len(HOSTERR_VARIANTS)} "
+              f"variants -- {len(_skipped)} skipped: "
+              f"{', '.join(v for v, _ in _skipped) or 'none'})")
         raise SystemExit(0)
 
     _mode = ("publication" if args.publication
@@ -775,6 +889,7 @@ if __name__ == "__main__":
         include_hosterr=not args.no_hosterr,
         nlive_mode=_mode,
         registry_file=args.registry_file,
+        rerun=args.rerun,
         n_workers=args.workers,
         sequential=args.sequential,
         log_dir=args.log_dir,
